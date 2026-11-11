@@ -14,7 +14,7 @@ export function getDb() {
       connectionString: readDatabaseUrl(),
       max: 5,
       idleTimeoutMillis: 20_000,
-      connectionTimeoutMillis: 5_000,
+      connectionTimeoutMillis: 15_000,
       statement_timeout: 10_000,
     });
     pool.on("error", () => console.error("database_pool_error"));

@@ -123,3 +123,28 @@ Tests require an explicitly supplied PostgreSQL database whose name ends `_test`
 Migrate it first, then run `DATABASE_URL=... AUTH_SECRET=... EMAIL_MODE=disabled npm test`.
 Only fictional `example.invalid` accounts are created. Never point tests at event
 or staging data. Tests use the same driver and business modules as the server.
+
+## Realtime transport (Phase 06)
+
+Default `REALTIME_MODE=polling` uses authorized repeatable-read snapshots and
+cursor-paginated events every 4 seconds while active, exponential backoff up to
+30 seconds on failures, pause in hidden tabs and immediate online/visibility
+resynchronization. Completed games stop regular polling after history catches up.
+Cursor advances only after a full page batch is retained; event IDs deduplicate.
+
+Docker can opt into `REALTIME_MODE=sse` (override the Compose environment setting).
+The authenticated stream polls persisted events, releases DB connections between
+queries, sends heartbeat comments, supports replay IDs, and closes after 25 seconds.
+The client treats SSE as an update hint; canonical snapshots/feed and polling remain
+active as recovery. SSE is disabled when `VERCEL` is set. Do not enable indefinite
+streams on Vercel. A proxy must disable buffering for the stream.
+
+Joined participants and admins can read full winner names and events. Whitelisted
+but unjoined students can read only their published game details/terms, with no
+winner names or activity. Feed/snapshot responses omit all emails and credentials.
+
+A 500-request stress rerun while building exposed pool acquisition timeouts at the
+original 5-second setting. The pool now allows 15 seconds to acquire/connect and
+submission handlers declare a 30-second function budget. Statement timeout remains
+10 seconds per statement. Retune only from measurements, keep per-game lock work
+short, and verify instance count/Neon connection limits before a real event.
