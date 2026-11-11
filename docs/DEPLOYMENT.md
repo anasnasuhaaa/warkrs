@@ -148,3 +148,14 @@ original 5-second setting. The pool now allows 15 seconds to acquire/connect and
 submission handlers declare a 30-second function budget. Statement timeout remains
 10 seconds per statement. Retune only from measurements, keep per-game lock work
 short, and verify instance count/Neon connection limits before a real event.
+
+## Browser verification
+
+Install Chromium with `npx playwright install chromium`. After a production build,
+run `npm run test:browser:fixtures` against the isolated `_test` database, then
+`npm run test:browser` with the same `DATABASE_URL` and a test `AUTH_SECRET`.
+The runner starts the app on port 3100 with its own exact origin and tests optional
+SSE. Fixture accounts use `example.invalid`; generated passwords, tokens, cookies,
+traces and screenshots live only in ignored `.test-artifacts`/`test-results`.
+Do not commit or share those directories. Recreate fixtures before each full run;
+immutable accepted games are never reset for testing.

@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-const databaseUrl = z.string().url().refine((value) => /^postgres(ql)?:/.test(value));
+const databaseUrl = z
+  .string()
+  .url()
+  .refine((value) => /^postgres(ql)?:/.test(value));
 
 export function readDatabaseUrl(direct = false) {
   const result = databaseUrl.safeParse(
@@ -11,7 +14,9 @@ export function readDatabaseUrl(direct = false) {
 }
 
 export function readAppUrl() {
-  const result = z.url().safeParse(process.env.APP_BASE_URL ?? "http://localhost:3000");
+  const result = z
+    .url()
+    .safeParse(process.env.APP_BASE_URL ?? "http://localhost:3000");
   if (!result.success || !/^https?:/.test(result.data)) {
     throw new Error("Konfigurasi APP_BASE_URL tidak valid.");
   }

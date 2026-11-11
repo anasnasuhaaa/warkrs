@@ -23,4 +23,8 @@ export function getDb() {
   return database;
 }
 
-export async function closeDb() { await pool?.end(); pool = undefined; database = undefined; }
+export async function closeDb() {
+  await pool?.end();
+  pool = undefined;
+  database = undefined;
+}

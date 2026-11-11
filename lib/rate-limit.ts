@@ -11,5 +11,10 @@ export async function limit(key: string, max: number, seconds = 60) {
       count = CASE WHEN request_limits.resets_at <= clock_timestamp() THEN 1 ELSE request_limits.count + 1 END,
       resets_at = CASE WHEN request_limits.resets_at <= clock_timestamp() THEN clock_timestamp() + ${seconds} * interval '1 second' ELSE request_limits.resets_at END
     RETURNING count`);
-  invariant(Number(result.rows[0].count) <= max, "RATE_LIMITED", "Terlalu banyak percobaan. Tunggu satu menit.", 429);
+  invariant(
+    Number(result.rows[0].count) <= max,
+    "RATE_LIMITED",
+    "Terlalu banyak percobaan. Tunggu satu menit.",
+    429,
+  );
 }

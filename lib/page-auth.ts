@@ -2,12 +2,19 @@ import "server-only";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppError } from "@/lib/errors";
-import { adminOnly, requireActor } from "@/lib/authorization";
+import { requireActor } from "@/lib/authorization";
 export async function pageActor(admin = false) {
-  try { const actor = await requireActor(await headers()); if (admin) adminOnly(actor); return actor; }
-  catch (error) {
-    if (error instanceof AppError && error.status === 401) redirect("/login");
-    if (error instanceof AppError && error.status === 403) redirect("/games");
+  let actor;
+  try {
+    actor = await requireActor(await headers());
+  } catch (error) {
+    if (
+      error instanceof AppError &&
+      (error.status === 401 || error.status === 403)
+    )
+      redirect("/login");
     throw error;
   }
+  if (admin && actor.role !== "ADMIN") redirect("/games");
+  return actor;
 }

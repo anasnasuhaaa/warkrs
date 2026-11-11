@@ -7,59 +7,194 @@ import { auditLogs, games, packages, participants, user } from "@/db/schema";
 import { Actor, adminOnly } from "@/lib/authorization";
 import { invariant } from "@/lib/errors";
 export const draftInput = z.object({
-  title: z.string().trim().min(1).max(150), termsText: z.string().trim().max(10000),
-  startsAt: z.iso.datetime({offset:true}), endsAt: z.iso.datetime({offset:true}),
-  packages: z.array(z.object({ name:z.string().trim().min(1).max(100), capacity:z.number().int().min(1).max(100000) })).max(50),
+  title: z.string().trim().min(1).max(150),
+  termsText: z.string().trim().max(10000),
+  startsAt: z.iso.datetime({ offset: true }),
+  endsAt: z.iso.datetime({ offset: true }),
+  packages: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(100),
+        capacity: z.number().int().min(1).max(100000),
+      }),
+    )
+    .max(50),
   userIds: z.array(z.uuid()).max(5000),
 });
 export type DraftInput = z.infer<typeof draftInput>;
 function validateDraft(input: DraftInput) {
   const value = draftInput.parse(input);
-  invariant(new Date(value.endsAt) > new Date(value.startsAt),"INVALID_DATES","Waktu selesai harus setelah waktu mulai.");
-  invariant(new Set(value.packages.map(p=>p.name.normalize("NFKC").toLowerCase())).size === value.packages.length,"DUPLICATE_PACKAGE","Nama paket harus berbeda.");
-  invariant(new Set(value.userIds).size===value.userIds.length,"INVALID_INPUT","Peserta tidak boleh duplikat.");
+  invariant(
+    new Date(value.endsAt) > new Date(value.startsAt),
+    "INVALID_DATES",
+    "Waktu selesai harus setelah waktu mulai.",
+  );
+  invariant(
+    new Set(value.packages.map((p) => p.name.normalize("NFKC").toLowerCase()))
+      .size === value.packages.length,
+    "DUPLICATE_PACKAGE",
+    "Nama paket harus berbeda.",
+  );
+  invariant(
+    new Set(value.userIds).size === value.userIds.length,
+    "INVALID_INPUT",
+    "Peserta tidak boleh duplikat.",
+  );
   return value;
 }
-export async function saveDraft(actor: Actor, input: DraftInput, gameId?: string) {
-  adminOnly(actor); const value = validateDraft(input); const id = gameId ?? randomUUID();
-  return getDb().transaction(async tx=>{
-    if(gameId) {
+export async function saveDraft(
+  actor: Actor,
+  input: DraftInput,
+  gameId?: string,
+) {
+  adminOnly(actor);
+  const value = validateDraft(input);
+  const id = gameId ?? randomUUID();
+  return getDb().transaction(async (tx) => {
+    if (gameId) {
       await tx.execute(sql`SELECT id FROM games WHERE id=${id} FOR UPDATE`);
-      const [game] = await tx.select().from(games).where(eq(games.id,id));
-      invariant(game,"NOT_FOUND","Game tidak ditemukan.",404); invariant(!game.publishedAt,"CONFIGURATION_FROZEN","Game terbit tidak dapat diubah.",409);
+      const [game] = await tx.select().from(games).where(eq(games.id, id));
+      invariant(game, "NOT_FOUND", "Game tidak ditemukan.", 404);
+      invariant(
+        !game.publishedAt,
+        "CONFIGURATION_FROZEN",
+        "Game terbit tidak dapat diubah.",
+        409,
+      );
     }
-    if(value.userIds.length) {
-      const valid = await tx.execute(sql`SELECT id FROM users WHERE role='STUDENT' AND id IN (${sql.join(value.userIds.map(v=>sql`${v}`),sql`,`)})`);
-      invariant(valid.rows.length===value.userIds.length,"INVALID_PARTICIPANT","Daftar peserta berisi akun yang tidak sesuai.");
+    if (value.userIds.length) {
+      const valid = await tx.execute(
+        sql`SELECT id FROM users WHERE role='STUDENT' AND id IN (${sql.join(
+          value.userIds.map((v) => sql`${v}`),
+          sql`,`,
+        )})`,
+      );
+      invariant(
+        valid.rows.length === value.userIds.length,
+        "INVALID_PARTICIPANT",
+        "Daftar peserta berisi akun yang tidak sesuai.",
+      );
     }
-    const fields = { title:value.title, termsText:value.termsText, termsVersion:randomUUID(), startsAt:new Date(value.startsAt), endsAt:new Date(value.endsAt), updatedAt:sql`clock_timestamp()` };
-    if(gameId) { await tx.update(games).set(fields).where(eq(games.id,id)); await tx.delete(packages).where(eq(packages.gameId,id)); await tx.delete(participants).where(eq(participants.gameId,id)); }
-    else await tx.insert(games).values({ id,...fields,createdBy:actor.id });
-    if(value.packages.length) await tx.insert(packages).values(value.packages.map(p=>({id:randomUUID(),gameId:id,...p,normalizedName:p.name.normalize("NFKC").toLowerCase()})));
-    if(value.userIds.length) await tx.insert(participants).values(value.userIds.map(userId=>({gameId:id,userId,whitelistedBy:actor.id})));
-    await tx.insert(auditLogs).values({id:randomUUID(),adminId:actor.id,gameId:id,action:gameId?"GAME_DRAFT_UPDATED":"GAME_CREATED"});
+    const fields = {
+      title: value.title,
+      termsText: value.termsText,
+      termsVersion: randomUUID(),
+      startsAt: new Date(value.startsAt),
+      endsAt: new Date(value.endsAt),
+      updatedAt: sql`clock_timestamp()`,
+    };
+    if (gameId) {
+      await tx.update(games).set(fields).where(eq(games.id, id));
+      await tx.delete(packages).where(eq(packages.gameId, id));
+      await tx.delete(participants).where(eq(participants.gameId, id));
+    } else
+      await tx.insert(games).values({ id, ...fields, createdBy: actor.id });
+    if (value.packages.length)
+      await tx
+        .insert(packages)
+        .values(
+          value.packages.map((p) => ({
+            id: randomUUID(),
+            gameId: id,
+            ...p,
+            normalizedName: p.name.normalize("NFKC").toLowerCase(),
+          })),
+        );
+    if (value.userIds.length)
+      await tx
+        .insert(participants)
+        .values(
+          value.userIds.map((userId) => ({
+            gameId: id,
+            userId,
+            whitelistedBy: actor.id,
+          })),
+        );
+    await tx
+      .insert(auditLogs)
+      .values({
+        id: randomUUID(),
+        adminId: actor.id,
+        gameId: id,
+        action: gameId ? "GAME_DRAFT_UPDATED" : "GAME_CREATED",
+      });
     return { id };
   });
 }
 export async function getDraft(actor: Actor, id: string) {
-  adminOnly(actor); const [game] = await getDb().select().from(games).where(eq(games.id,id)); invariant(game,"NOT_FOUND","Game tidak ditemukan.",404);
-  const gamePackages = await getDb().select().from(packages).where(eq(packages.gameId,id)).orderBy(packages.createdAt,packages.id);
-  const whitelist = await getDb().select({userId:participants.userId,joinedAt:participants.joinedAt,name:user.name}).from(participants).innerJoin(user,eq(user.id,participants.userId)).where(eq(participants.gameId,id));
-  return { ...game, packages:gamePackages, whitelist };
+  adminOnly(actor);
+  const [game] = await getDb().select().from(games).where(eq(games.id, id));
+  invariant(game, "NOT_FOUND", "Game tidak ditemukan.", 404);
+  const gamePackages = await getDb()
+    .select()
+    .from(packages)
+    .where(eq(packages.gameId, id))
+    .orderBy(packages.createdAt, packages.id);
+  const whitelist = await getDb()
+    .select({
+      userId: participants.userId,
+      joinedAt: participants.joinedAt,
+      name: user.name,
+    })
+    .from(participants)
+    .innerJoin(user, eq(user.id, participants.userId))
+    .where(eq(participants.gameId, id));
+  return { ...game, packages: gamePackages, whitelist };
 }
 export async function publishGame(actor: Actor, id: string) {
   adminOnly(actor);
-  return getDb().transaction(async tx=>{
+  return getDb().transaction(async (tx) => {
     await tx.execute(sql`SELECT id FROM games WHERE id=${id} FOR UPDATE`);
-    const [game] = await tx.select().from(games).where(eq(games.id,id)); invariant(game,"NOT_FOUND","Game tidak ditemukan.",404); invariant(!game.publishedAt,"CONFIGURATION_FROZEN","Game sudah diterbitkan.",409);
-    const result = await tx.execute(sql`SELECT clock_timestamp() AS now`); const now = new Date(result.rows[0].now as string);
-    const ps = await tx.select().from(packages).where(eq(packages.gameId,id)); const members = await tx.select().from(participants).where(eq(participants.gameId,id));
-    invariant(game.title.trim() && game.termsText.trim(),"INVALID_INPUT","Judul dan ketentuan wajib diisi.");
-    invariant(game.endsAt > game.startsAt && game.endsAt > now,"INVALID_DATES","Jadwal game tidak valid atau sudah berakhir.");
-    invariant(ps.length>0 && members.length>0,"INVALID_INPUT","Tambahkan minimal satu paket dan satu peserta.");
-    invariant(ps.reduce((sum,p)=>sum+p.capacity,0)>=members.length,"INSUFFICIENT_CAPACITY","Total kuota harus mencakup seluruh daftar peserta.");
-    await tx.update(games).set({publishedAt:sql`clock_timestamp()`,updatedAt:sql`clock_timestamp()`}).where(eq(games.id,id));
-    await tx.insert(auditLogs).values({id:randomUUID(),adminId:actor.id,gameId:id,action:"GAME_PUBLISHED"});
-    return {id};
+    const [game] = await tx.select().from(games).where(eq(games.id, id));
+    invariant(game, "NOT_FOUND", "Game tidak ditemukan.", 404);
+    invariant(
+      !game.publishedAt,
+      "CONFIGURATION_FROZEN",
+      "Game sudah diterbitkan.",
+      409,
+    );
+    const result = await tx.execute(sql`SELECT clock_timestamp() AS now`);
+    const now = new Date(result.rows[0].now as string);
+    const ps = await tx.select().from(packages).where(eq(packages.gameId, id));
+    const members = await tx
+      .select()
+      .from(participants)
+      .where(eq(participants.gameId, id));
+    invariant(
+      game.title.trim() && game.termsText.trim(),
+      "INVALID_INPUT",
+      "Judul dan ketentuan wajib diisi.",
+    );
+    invariant(
+      game.endsAt > game.startsAt && game.endsAt > now,
+      "INVALID_DATES",
+      "Jadwal game tidak valid atau sudah berakhir.",
+    );
+    invariant(
+      ps.length > 0 && members.length > 0,
+      "INVALID_INPUT",
+      "Tambahkan minimal satu paket dan satu peserta.",
+    );
+    invariant(
+      ps.reduce((sum, p) => sum + p.capacity, 0) >= members.length,
+      "INSUFFICIENT_CAPACITY",
+      "Total kuota harus mencakup seluruh daftar peserta.",
+    );
+    await tx
+      .update(games)
+      .set({
+        publishedAt: sql`clock_timestamp()`,
+        updatedAt: sql`clock_timestamp()`,
+      })
+      .where(eq(games.id, id));
+    await tx
+      .insert(auditLogs)
+      .values({
+        id: randomUUID(),
+        adminId: actor.id,
+        gameId: id,
+        action: "GAME_PUBLISHED",
+      });
+    return { id };
   });
 }

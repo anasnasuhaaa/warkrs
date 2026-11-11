@@ -1,17 +1,206 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card,CardHeader,CardTitle,CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api-client";
 import { jakarta } from "@/lib/time";
 import type { Result } from "@/modules/allocation/service";
-export type WireResult=Omit<Result,"acceptedAt">&{acceptedAt:string};
-export function Ranking({id,packages,live,stale,onAccepted,authoritativeResult}:{id:string;packages:{id:string;name:string;capacity:number}[];live:boolean;stale:boolean;onAccepted?:()=>void;authoritativeResult?:WireResult|null}) {
- const [selected,setSelected]=useState<string[]>([]);const [pending,setPending]=useState(false);const [result,setResult]=useState<WireResult|null>(null);const [loaded,setLoaded]=useState(false);const [message,setMessage]=useState("");
- useEffect(()=>{let disposed=false;api<WireResult|null>(`/api/games/${id}/me/submission`).then(data=>{if(!disposed){setResult(data);setLoaded(true);}}).catch(()=>{if(!disposed)setMessage("Hasil belum dapat diperiksa. Muat ulang untuk mencoba kembali.");});return()=>{disposed=true;};},[id]);
- const confirmed=authoritativeResult??result;
- if(confirmed)return <Card className="border-primary/30 bg-primary/5"><CardHeader><CardTitle>Alokasi Anda diterima</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-2xl font-bold">{confirmed.allocation.packageName}</p><p>Pilihan ke-{confirmed.allocation.awardedRank} · urutan penerimaan #{confirmed.sequence}</p><p className="text-sm text-muted-foreground">Diterima server {jakarta(confirmed.acceptedAt)}. Hasil tetap dan tidak dapat diubah.</p></CardContent></Card>;
- if(!live)return <p role="status" className="text-sm text-muted-foreground">{!loaded?"Memeriksa hasil tersimpan…":"Belum ada pengiriman yang diterima untuk Anda."}{message}</p>;
- function move(index:number,delta:number){const copy=[...selected];[copy[index],copy[index+delta]]=[copy[index+delta],copy[index]];setSelected(copy);}
- return <Card><CardHeader><CardTitle>Urutkan semua paket</CardTitle></CardHeader><CardContent className="space-y-5"><p className="text-sm text-muted-foreground">Ketuk paket sesuai urutan pilihan. Jika paket penuh, server mencoba pilihan berikutnya. Lengkapi seluruh paket sebelum mengirim.</p><div className="grid gap-3 sm:grid-cols-2">{packages.map(p=><Button key={p.id} className="h-auto min-h-14 justify-start whitespace-normal py-3 text-left" variant={selected.includes(p.id)?"secondary":"outline"} disabled={selected.includes(p.id)||pending||!loaded} onClick={()=>setSelected([...selected,p.id])}>{selected.includes(p.id)?`${selected.indexOf(p.id)+1}. `:"+ "}{p.name} · kuota {p.capacity}</Button>)}</div><p className="text-sm font-medium" aria-live="polite">{selected.length} dari {packages.length} paket dipilih</p><ol className="space-y-3">{selected.map((packageId,i)=><li key={packageId} className="rounded-lg border p-3"><p className="mb-2 font-medium">{i+1}. {packages.find(p=>p.id===packageId)?.name}</p><div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" aria-label={`Naikkan pilihan ${i+1}`} disabled={i===0||pending} onClick={()=>move(i,-1)}>Naik</Button><Button size="sm" variant="outline" aria-label={`Turunkan pilihan ${i+1}`} disabled={i===selected.length-1||pending} onClick={()=>move(i,1)}>Turun</Button><Button size="sm" variant="ghost" aria-label={`Hapus pilihan ${i+1}`} disabled={pending} onClick={()=>setSelected(selected.filter(p=>p!==packageId))}>Hapus</Button></div></li>)}</ol><p className="text-xs leading-relaxed text-muted-foreground">Satu pengiriman yang diterima bersifat tetap. Urutan resmi mengikuti penerimaan database, bukan waktu klik. Server harus menerima permintaan sebelum game ditutup.</p><p role="status" aria-live="polite" className="text-sm">{pending?"Mengirim dan menunggu konfirmasi server…":message}</p><Button className="min-h-12 w-full" disabled={pending||!loaded||stale||selected.length!==packages.length} onClick={async()=>{if(pending)return;setPending(true);setMessage("");try{const accepted=await api<WireResult>(`/api/games/${id}/submissions`,{packageIds:selected});setResult(accepted);onAccepted?.();}catch(error){try{const saved=await api<WireResult|null>(`/api/games/${id}/me/submission`);if(saved){setResult(saved);onAccepted?.();}else setMessage(error instanceof Error?error.message:"Belum ada konfirmasi. Silakan coba kembali.");}catch{setMessage("Konfirmasi belum tersedia. Muat ulang atau coba lagi; hasil yang sudah diterima tetap disimpan.");}}finally{setPending(false);}}}>{pending?"Menunggu server…":"Kirim urutan paket"}</Button></CardContent></Card>;
+export type WireResult = Omit<Result, "acceptedAt"> & { acceptedAt: string };
+export function Ranking({
+  id,
+  packages,
+  live,
+  stale,
+  onAccepted,
+  authoritativeResult,
+}: {
+  id: string;
+  packages: { id: string; name: string; capacity: number }[];
+  live: boolean;
+  stale: boolean;
+  onAccepted?: () => void;
+  authoritativeResult?: WireResult | null;
+}) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [pending, setPending] = useState(false);
+  const [result, setResult] = useState<WireResult | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    let disposed = false;
+    api<WireResult | null>(`/api/games/${id}/me/submission`)
+      .then((data) => {
+        if (!disposed) {
+          setResult(data);
+          setLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (!disposed)
+          setMessage(
+            "Hasil belum dapat diperiksa. Muat ulang untuk mencoba kembali.",
+          );
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [id]);
+  const confirmed = authoritativeResult ?? result;
+  if (confirmed)
+    return (
+      <Card className="border-primary/30 bg-primary/5">
+        <CardHeader>
+          <CardTitle>Alokasi Anda diterima</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-2xl font-bold">
+            {confirmed.allocation.packageName}
+          </p>
+          <p>
+            Pilihan ke-{confirmed.allocation.awardedRank} · urutan penerimaan #
+            {confirmed.sequence}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Diterima server {jakarta(confirmed.acceptedAt)}. Hasil tetap dan
+            tidak dapat diubah.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  if (!live)
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        {!loaded
+          ? "Memeriksa hasil tersimpan…"
+          : "Belum ada pengiriman yang diterima untuk Anda."}
+        {message}
+      </p>
+    );
+  function move(index: number, delta: number) {
+    const copy = [...selected];
+    [copy[index], copy[index + delta]] = [copy[index + delta], copy[index]];
+    setSelected(copy);
+  }
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Urutkan semua paket</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <p className="text-sm text-muted-foreground">
+          Ketuk paket sesuai urutan pilihan. Jika paket penuh, server mencoba
+          pilihan berikutnya. Lengkapi seluruh paket sebelum mengirim.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {packages.map((p) => (
+            <Button
+              key={p.id}
+              className="h-auto min-h-14 justify-start whitespace-normal py-3 text-left"
+              variant={selected.includes(p.id) ? "secondary" : "outline"}
+              disabled={selected.includes(p.id) || pending || !loaded}
+              onClick={() => setSelected([...selected, p.id])}
+            >
+              {selected.includes(p.id)
+                ? `${selected.indexOf(p.id) + 1}. `
+                : "+ "}
+              {p.name} · kuota {p.capacity}
+            </Button>
+          ))}
+        </div>
+        <p className="text-sm font-medium" aria-live="polite">
+          {selected.length} dari {packages.length} paket dipilih
+        </p>
+        <ol className="space-y-3">
+          {selected.map((packageId, i) => (
+            <li key={packageId} className="rounded-lg border p-3">
+              <p className="mb-2 font-medium">
+                {i + 1}. {packages.find((p) => p.id === packageId)?.name}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  aria-label={`Naikkan pilihan ${i + 1}`}
+                  disabled={i === 0 || pending}
+                  onClick={() => move(i, -1)}
+                >
+                  Naik
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  aria-label={`Turunkan pilihan ${i + 1}`}
+                  disabled={i === selected.length - 1 || pending}
+                  onClick={() => move(i, 1)}
+                >
+                  Turun
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`Hapus pilihan ${i + 1}`}
+                  disabled={pending}
+                  onClick={() =>
+                    setSelected(selected.filter((p) => p !== packageId))
+                  }
+                >
+                  Hapus
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Satu pengiriman yang diterima bersifat tetap. Urutan resmi mengikuti
+          penerimaan database, bukan waktu klik. Server harus menerima
+          permintaan sebelum game ditutup.
+        </p>
+        <p role="status" aria-live="polite" className="text-sm">
+          {pending ? "Mengirim dan menunggu konfirmasi server…" : message}
+        </p>
+        <Button
+          className="min-h-12 w-full"
+          disabled={
+            pending || !loaded || stale || selected.length !== packages.length
+          }
+          onClick={async () => {
+            if (pending) return;
+            setPending(true);
+            setMessage("");
+            try {
+              const accepted = await api<WireResult>(
+                `/api/games/${id}/submissions`,
+                { packageIds: selected },
+              );
+              setResult(accepted);
+              onAccepted?.();
+            } catch (error) {
+              try {
+                const saved = await api<WireResult | null>(
+                  `/api/games/${id}/me/submission`,
+                );
+                if (saved) {
+                  setResult(saved);
+                  onAccepted?.();
+                } else
+                  setMessage(
+                    error instanceof Error
+                      ? error.message
+                      : "Belum ada konfirmasi. Silakan coba kembali.",
+                  );
+              } catch {
+                setMessage(
+                  "Konfirmasi belum tersedia. Muat ulang atau coba lagi; hasil yang sudah diterima tetap disimpan.",
+                );
+              }
+            } finally {
+              setPending(false);
+            }
+          }}
+        >
+          {pending ? "Menunggu server…" : "Kirim urutan paket"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
 }
