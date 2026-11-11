@@ -88,3 +88,38 @@ Use `.env.example` with **placeholders only**. For Neon, use the appropriate poo
   publishes web only on loopback and does not publish the database.
 - No runtime database initialization or migrations occur during static builds.
 - Phase 01 does not implement accounts, game data, email or allocations.
+
+## Invite-only authentication (Phase 02)
+
+- Better Auth manages PostgreSQL-backed sessions and scrypt password hashing.
+  Public routing allows only email sign-in, session read and sign-out; signup,
+  email changes, provider linking and other generic account endpoints are closed.
+- Import `name,email` CSV through `/admin/students`, review invalid/duplicate rows,
+  and explicitly import valid rows. Existing accounts are never overwritten.
+- Bootstrap once after migrations using `npm run admin:bootstrap`. Supply
+  `BOOTSTRAP_NAME`, `BOOTSTRAP_EMAIL`, `BOOTSTRAP_PASSWORD` through a secure shell
+  environment (password >=16 characters). The command refuses an existing admin
+  and never prints credentials. Clear the bootstrap variables afterward.
+- Set `AUTH_SECRET` to >=32 random characters and `APP_BASE_URL` to the exact
+  origin. Custom mutations require matching Origin; Better Auth additionally
+  validates origins and manages HttpOnly session cookies. Use HTTPS in production.
+- `EMAIL_MODE=disabled` is the safe default. To explicitly send activation/reset
+  mail, set `EMAIL_MODE=resend`, a test/staging Resend key, and verified `EMAIL_FROM`.
+  Never use real cohort recipients during tests. No activation links appear in
+  API responses or logs; link tokens are in URL fragments and removed on opening.
+- Tokens are SHA-256 digests in the database, expire after one hour, and are consumed
+  transactionally with credential replacement. Resends invalidate older tokens;
+  password reset revokes sessions. Password hashing happens outside row locks.
+- Rate limiting is database-persisted: login per normalized account, token use,
+  activation sends and recovery. Proxy IP limits are only supplemental; deploy
+  behind a trusted proxy and reject direct public access to the Node server.
+- Component caching was disabled for request-specific authenticated pages; no
+  auth or game response is shared through a cross-user cache. The existing
+  Turbopack/Tailwind and agent-feedback settings remain intact.
+
+### Database-backed tests
+
+Tests require an explicitly supplied PostgreSQL database whose name ends `_test`.
+Migrate it first, then run `DATABASE_URL=... AUTH_SECRET=... EMAIL_MODE=disabled npm test`.
+Only fictional `example.invalid` accounts are created. Never point tests at event
+or staging data. Tests use the same driver and business modules as the server.

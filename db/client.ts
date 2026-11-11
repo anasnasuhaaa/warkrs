@@ -5,11 +5,12 @@ import { readDatabaseUrl } from "@/lib/config";
 
 // Lazy initialization: static builds do not need database credentials.
 // Only connections are cached; all application state lives in PostgreSQL.
+let pool: Pool | undefined;
 let database: ReturnType<typeof drizzle> | undefined;
 
 export function getDb() {
   if (!database) {
-    const pool = new Pool({
+    pool = new Pool({
       connectionString: readDatabaseUrl(),
       max: 5,
       idleTimeoutMillis: 20_000,
@@ -21,3 +22,5 @@ export function getDb() {
   }
   return database;
 }
+
+export async function closeDb() { await pool?.end(); pool = undefined; database = undefined; }
