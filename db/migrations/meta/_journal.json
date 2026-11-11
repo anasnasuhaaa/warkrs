@@ -8,6 +8,20 @@
       "when": 1794409316792,
       "tag": "0000_fine_mordo",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794409677544,
+      "tag": "0001_lean_outlaw_kid",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794409678485,
+      "tag": "0002_configuration_guards",
+      "breakpoints": true
     }
   ]
 }

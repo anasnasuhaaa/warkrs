@@ -61,3 +61,12 @@ These are behavioral contracts. Codex may implement them using Next.js Route Han
 | Network drops after successful commit | Re-open result via own submission endpoint |
 | Admin stops during activity | No new accepted submissions; prior committed outcomes unchanged |
 | Game reaches deadline | New admission rejected using authoritative clock; no dependency on client countdown |
+
+## Implemented Draft write convention
+
+The admin editor saves title, terms, schedule, named packages and `userIds` together
+using `POST /api/admin/games` or Draft-only `PATCH /api/admin/games/:id`. This is one
+atomic operation under the game row lock; it replaces only Draft packages and
+whitelist. There are no independent public package/whitelist write endpoints.
+Publication uses the separate validated `/publish` endpoint. PostgreSQL triggers
+also freeze published configuration and whitelist, and reject audit updates/deletes.
