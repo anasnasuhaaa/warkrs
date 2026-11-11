@@ -22,6 +22,20 @@
       "when": 1794409678485,
       "tag": "0002_configuration_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794409903629,
+      "tag": "0003_short_inertia",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794409904563,
+      "tag": "0004_event_history_guard",
+      "breakpoints": true
     }
   ]
 }

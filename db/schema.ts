@@ -68,3 +68,8 @@ export const auditLogs = pgTable("admin_audit_logs", {
   id: text("id").primaryKey(), adminId: text("admin_user_id").notNull().references(() => user.id), gameId: text("game_id").references(() => games.id),
   action: text("action").notNull(), reason: text("reason"), metadata: text("metadata").notNull().default("{}"), createdAt: time("created_at").notNull().defaultNow(),
 }, (t) => [index("audit_game_idx").on(t.gameId,t.createdAt)]);
+export const events = pgTable("war_events", {
+  eventId: bigint("event_id",{mode:"number"}).primaryKey().generatedAlwaysAsIdentity(), gameId:text("game_id").notNull().references(()=>games.id),
+  actorId:text("actor_user_id").references(()=>user.id), type:text("event_type").notNull(), packageId:text("package_id").references(()=>packages.id),
+  submissionId:text("submission_id"), sequence:integer("sequence"), rank:integer("rank"), createdAt:time("created_at").notNull().defaultNow(),
+},t=>[index("events_game_cursor_idx").on(t.gameId,t.eventId)]);

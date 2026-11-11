@@ -81,3 +81,17 @@ Do not add Redis, microservices, Kubernetes, separate job broker, Go/Rust servic
 - Vercel function limits/duration: https://vercel.com/docs/functions/configuring-functions/duration
 - Vercel streaming runtime: https://vercel.com/docs/functions/runtimes
 - shadcn/ui for existing Next.js apps: https://ui.shadcn.com/docs/installation/next
+
+## Implemented lifecycle
+
+Effective status uses PostgreSQL `clock_timestamp()` after the game row lock, not
+transaction-start `now()` or the browser clock. Join records affirmative consent
+and frozen terms version once; a mandatory shared privacy/fairness notice is shown
+alongside admin-authored terms. Scheduled closure is reconciled on authorized reads
+and enforced directly on mutations even if no status read or cron has occurred.
+
+With atomic admission/allocation, acquiring the shared close lock proves there is
+no partially accepted job still running. Closing and Completed events can therefore
+commit together; Closing has zero duration when there is nothing outstanding.
+Manual close preserves all outcomes and records actor/reason. Completed rows,
+consent, published configuration and audit/event history are protected by triggers.

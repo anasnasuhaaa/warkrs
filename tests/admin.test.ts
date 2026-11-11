@@ -2,15 +2,12 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { sql } from "drizzle-orm";
 import { getDb, closeDb } from "../db/client";
-import { getDraft, publishGame, saveDraft, type DraftInput } from "../modules/games/admin";
+import { getDraft, publishGame, saveDraft } from "../modules/games/admin";
 import { listGames } from "../modules/games/queries";
-import { actor, dbNow } from "./helpers";
+import { draftFixture } from "./fixtures";
+import { actor } from "./helpers";
 after(closeDb);
-export async function draftFixture(count=2,capacity=count) {
- const admin=await actor("ADMIN");const students=await Promise.all(Array.from({length:count},()=>actor()));const now=await dbNow();
- const input:DraftInput={title:"Simulasi Fiksi",termsText:"Ketentuan fiksi",startsAt:new Date(now.getTime()+60000).toISOString(),endsAt:new Date(now.getTime()+3600000).toISOString(),packages:[{name:"Paket A",capacity}],userIds:students.map(s=>s.id)};
- return {admin,students,input};
-}
+
 test("draft validation and admin authorization",async()=>{
  const {admin,students,input}=await draftFixture();
  await assert.rejects(saveDraft(students[0],input),{code:"FORBIDDEN"});
