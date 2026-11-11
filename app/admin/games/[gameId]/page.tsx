@@ -1,12 +1,17 @@
+import Link from "next/link";
+import { ArrowLeft, LockKeyhole, CalendarDays } from "lucide-react";
 import { AdminLive } from "@/components/domain/admin-live";
+import { ParticipantMonitor } from "@/components/domain/participant-monitor";
+import { PageHeader } from "@/components/domain/page-header";
+import { StatusBadge } from "@/components/domain/status-badge";
 import type { RoomGame } from "@/components/domain/game-room";
 import { gameDetail } from "@/modules/games/detail";
 import { monitorGame } from "@/modules/games/lifecycle";
 import { pageActor } from "@/lib/page-auth";
 import { getDraft } from "@/modules/games/admin";
 import { listStudents } from "@/modules/accounts/service";
-import { GameEditor, PublishGame } from "@/components/domain/game-editor";
-import { Badge } from "@/components/ui/badge";
+import { GameEditor } from "@/components/domain/game-editor";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { jakarta } from "@/lib/time";
 export default async function Page({
   params,
@@ -19,65 +24,80 @@ export default async function Page({
   const monitor = await monitorGame(actor, game.id);
   return (
     <>
-      <div>
-        <Badge variant="secondary">
-          {game.publishedAt ? "Terbit · konfigurasi terkunci" : "Draf"}
-        </Badge>
-        <h1 className="mt-3 text-3xl font-bold">{game.title}</h1>
-      </div>
+      <Link
+        href="/admin/games"
+        className="inline-flex items-center gap-2 rounded-sm text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" aria-hidden="true" />
+        Daftar game
+      </Link>
+      <PageHeader
+        title={game.title}
+        action={<StatusBadge status={detail.status} />}
+      />
       {!game.publishedAt ? (
-        <>
-          <GameEditor
-            students={await listStudents(actor)}
-            draft={{
-              id: game.id,
-              title: game.title,
-              termsText: game.termsText,
-              startsAt: game.startsAt.toISOString(),
-              endsAt: game.endsAt.toISOString(),
-              packages: game.packages,
-              userIds: game.whitelist.map((p) => p.userId),
-            }}
-          />
-          <PublishGame id={game.id} />
-        </>
+        <GameEditor
+          students={await listStudents(actor)}
+          draft={{
+            id: game.id,
+            title: game.title,
+            termsText: game.termsText,
+            startsAt: game.startsAt.toISOString(),
+            endsAt: game.endsAt.toISOString(),
+            packages: game.packages,
+            userIds: game.whitelist.map((p) => p.userId),
+          }}
+        />
       ) : (
-        <section className="space-y-4">
-          <AdminLive initial={JSON.parse(JSON.stringify(detail)) as RoomGame} />
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-            <p>Daftar peserta: {monitor.whitelisted}</p>
-            <p>Bergabung: {monitor.joined}</p>
-            <p>Belum bergabung: {monitor.notJoined}</p>
-          </div>
-          <details className="rounded-lg border p-4">
-            <summary className="cursor-pointer font-medium">
-              Status peserta
-            </summary>
-            <ul className="mt-4 space-y-2 text-sm">
-              {monitor.members.map((m) => (
-                <li key={m.id}>
-                  {m.name} ·{" "}
-                  {m.joinedAt ? "Sudah bergabung" : "Belum bergabung"}
-                </li>
-              ))}
-            </ul>
-          </details>
-          <p>
-            {jakarta(game.startsAt)} – {jakarta(game.endsAt)}
-          </p>
-          <p>
-            {game.packages.length} paket · {game.whitelist.length} daftar
-            peserta · {game.packages.reduce((n, p) => n + p.capacity, 0)} kuota
-          </p>
-          <p className="whitespace-pre-wrap rounded-lg border p-4 text-sm">
-            {game.termsText}
-          </p>
-          {game.packages.map((p) => (
-            <p key={p.id}>
-              {p.name} · kuota {p.capacity}
+        <>
+          <div className="flex items-start gap-2.5 rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground">
+            <LockKeyhole
+              className="mt-0.5 size-4 shrink-0"
+              aria-hidden="true"
+            />
+            <p>
+              Game sudah diterbitkan. Jadwal, ketentuan, paket, kuota, dan
+              daftar peserta terkunci.
             </p>
-          ))}
-        </section>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[
+              ["Mulai", game.startsAt],
+              ["Selesai", game.endsAt],
+            ].map(([label, date]) => (
+              <div
+                key={String(label)}
+                className="flex items-center gap-3 rounded-lg border bg-card p-4"
+              >
+                <CalendarDays
+                  className="size-5 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    {String(label)}
+                  </p>
+                  <p className="mt-1 text-sm font-medium">{jakarta(date)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <AdminLive initial={JSON.parse(JSON.stringify(detail)) as RoomGame} />
+          <ParticipantMonitor
+            id={game.id}
+            initial={JSON.parse(JSON.stringify(monitor.members))}
+          />
+          <Card>
+            <CardHeader className="border-b">
+              <CardTitle>Ketentuan game</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
+                {game.termsText}
+              </p>
+            </CardContent>
+          </Card>
+        </>
       )}
     </>
   );

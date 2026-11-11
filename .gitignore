@@ -45,3 +45,9 @@ next-env.d.ts
 /.test-artifacts/
 /test-results/
 /playwright-report/
+
+# Local implementation instructions and internal documentation
+/AGENTS.md
+/README-CODEX.md
+/docs/
+/prompts/

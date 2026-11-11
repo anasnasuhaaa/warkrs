@@ -16,22 +16,20 @@ async function main() {
     const id = randomUUID();
     const data = {
       id,
-      name: `Fiksi Browser ${id.slice(0, 6)}`,
+      name: `Fiksi Browser ${id.slice(0, 6)} ${role === "ADMIN" ? "Administrator Pengujian Antarmuka" : "Mahasiswa Pengujian Dengan Nama Lengkap Panjang"}`,
       email: `${id}@example.invalid`,
       role,
       emailVerified: active,
     };
     await getDb().insert(user).values(data);
     if (active)
-      await getDb()
-        .insert(account)
-        .values({
-          id: randomUUID(),
-          userId: id,
-          accountId: id,
-          providerId: "credential",
-          password: hash,
-        });
+      await getDb().insert(account).values({
+        id: randomUUID(),
+        userId: id,
+        accountId: id,
+        providerId: "credential",
+        password: hash,
+      });
     return data;
   }
   const admin = await create("ADMIN");
@@ -60,7 +58,7 @@ async function main() {
     return getDraft(admin, result.id);
   }
   const live = [];
-  for (const width of [320, 375, 768, 1440])
+  for (const width of [320, 375, 768, 1024, 1440])
     live.push({ width, game: await createGame(`Fiksi viewport ${width}`) });
   const upcoming = await createGame("Fiksi ruang tunggu", 600000);
   const simultaneous = await createGame("Fiksi dua browser");

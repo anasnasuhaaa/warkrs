@@ -54,7 +54,7 @@ npm run test:browser
 ```
 
 Browser checks use the test DB, start the production server on port 3100, and cover
-320/375/768/1440px, axe accessibility, consent/ranking/results/admin and reconnect.
+320/375/768/1024/1440px, axe accessibility, consent/ranking/results/admin and reconnect.
 Regenerate fixtures before each full browser run. Private generated fixtures,
 traces and screenshots stay in ignored directories.
 
@@ -78,6 +78,13 @@ Vercel uses the same app and `npm run build`, with Neon pooled `DATABASE_URL`,
 direct migration URL, exact HTTPS `APP_BASE_URL`, secret and Resend configuration.
 Default realtime is polling; no worker or perpetual Vercel stream is required.
 
-See [deployment and backups](docs/DEPLOYMENT.md), [safe load tests](docs/LOAD_TESTING.md),
-[event runbook](docs/RUNBOOK.md), and [verification reports](docs/verification/).
-No Git push or external deployment is performed by these scripts.
+The interface uses Poppins through `next/font/google`, a semantic blue theme and
+an official shadcn sidebar for administrators. Initial font builds require access
+to Google Fonts; browsers receive self-hosted assets. Date/time fields display WIB
+and retain the existing UTC API contract.
+
+Internal implementation instructions, prompts and operational documents remain
+local in `AGENTS.md`, `README-CODEX.md`, `docs/` and `prompts/`; these paths are
+intentionally excluded from Git. Application source, migrations, Docker setup and
+test/load scripts remain versioned. No Git push or external deployment is performed
+by these scripts.

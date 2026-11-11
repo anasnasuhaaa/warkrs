@@ -12,6 +12,7 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
+import { LockKeyhole, LoaderCircle } from "lucide-react";
 import { api } from "@/lib/api-client";
 export function AuthForm({
   mode,
@@ -36,11 +37,20 @@ export function AuthForm({
     "forgot-password": "Pulihkan akun",
   }[mode];
   return (
-    <Card className="mx-auto max-w-md">
+    <Card className="mx-auto w-full max-w-md shadow-xs">
       <CardHeader>
-        <CardTitle className="text-2xl">{title}</CardTitle>
+        <span className="mb-3 flex size-11 items-center justify-center rounded-lg bg-accent text-primary">
+          <LockKeyhole className="size-5" aria-hidden="true" />
+        </span>
+        <CardTitle>
+          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        </CardTitle>
         <CardDescription>
-          Akun disediakan oleh admin angkatan. Tidak ada pendaftaran mandiri.
+          {mode === "login"
+            ? "Gunakan email dan kata sandi akun yang telah diaktifkan."
+            : mode === "forgot-password"
+              ? "Masukkan email akunmu untuk menerima tautan pemulihan."
+              : "Buat kata sandi untuk mengamankan akunmu."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -135,20 +145,38 @@ export function AuthForm({
             role="status"
             aria-live="polite"
             className={
-              success ? "text-sm text-primary" : "text-sm text-destructive"
+              success ? "text-sm text-success" : "text-sm text-destructive"
             }
           >
             {message}
           </p>
           <Button className="w-full min-h-11" disabled={pending || success}>
+            {pending && (
+              <LoaderCircle
+                className="size-4 animate-spin"
+                aria-hidden="true"
+              />
+            )}
             {pending ? "Memproses…" : title}
           </Button>
-          <div className="flex flex-wrap justify-between gap-3 text-sm underline">
-            <Link href="/login">Halaman masuk</Link>
+          <div className="flex flex-wrap justify-between gap-3 text-sm text-primary">
+            {mode !== "login" && (
+              <Link className="rounded-sm hover:underline" href="/login">
+                Kembali ke halaman masuk
+              </Link>
+            )}
             {mode === "login" && (
-              <Link href="/forgot-password">Lupa kata sandi?</Link>
+              <Link
+                className="rounded-sm hover:underline"
+                href="/forgot-password"
+              >
+                Lupa kata sandi?
+              </Link>
             )}
           </div>
+          <p className="border-t pt-4 text-xs leading-relaxed text-muted-foreground">
+            Akun hanya disediakan oleh admin angkatan.
+          </p>
         </form>
       </CardContent>
     </Card>
