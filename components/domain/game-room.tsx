@@ -1,4 +1,5 @@
 "use client";
+import { Ranking } from "./ranking";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ export function GameRoom({initial}:{initial:RoomGame}) {
  {game.status==='Upcoming'&&<Card><CardHeader><CardTitle>War belum dimulai</CardTitle></CardHeader><CardContent><p className="text-3xl font-semibold tabular-nums">{Math.floor(seconds/3600)}j {Math.floor(seconds%3600/60)}m {seconds%60}d</p><p className="mt-3 text-sm text-muted-foreground">Hitung mundur bersifat informatif. Pilihan paket baru tersedia setelah server menyatakan Live.</p></CardContent></Card>}
  {!game.joinedAt&&!closed&&<Card><CardHeader><CardTitle>Baca ketentuan sebelum bergabung</CardTitle></CardHeader><CardContent className="space-y-5"><p className="whitespace-pre-wrap text-sm leading-relaxed">{game.termsText}</p><p className="rounded-lg bg-muted p-4 text-sm leading-relaxed">{consentNotice}</p><div className="flex items-start gap-3"><Checkbox id="consent" checked={accepted} onCheckedChange={v=>setAccepted(v===true)} disabled={pending}/><Label htmlFor="consent" className="leading-relaxed">Saya telah membaca dan menyetujui ketentuan serta pemberitahuan nama lengkap di atas.</Label></div><Button className="min-h-11" disabled={!accepted||pending||stale} onClick={async()=>{setPending(true);setMessage("");try{await api(`/api/games/${game.id}/join`,{accepted:true,acceptedTermsVersion:game.termsVersion});setGame(await api<RoomGame>(`/api/games/${game.id}`));}catch(e){setMessage(e instanceof Error?e.message:"Gagal bergabung.");}finally{setPending(false);}}}>{pending?"Bergabung…":"Gabung game"}</Button><p role="status" className="text-sm text-destructive">{message}</p></CardContent></Card>}
  {game.joinedAt&&<p className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">Anda sudah bergabung dan menyetujui ketentuan game.</p>}
- {closed?<Card><CardHeader><CardTitle>{game.status==='Completed'?"Game selesai":"Game sedang ditutup"}</CardTitle></CardHeader><CardContent>Pengiriman baru telah ditutup. Hasil yang diterima tetap disimpan.</CardContent></Card>:game.status==='Live'&&game.joinedAt&&<Card><CardHeader><CardTitle>War berlangsung</CardTitle></CardHeader><CardContent>Pemilihan dan pengiriman paket tersedia pada tahap alokasi berikutnya.</CardContent></Card>}
+ {game.joinedAt&&<Ranking id={game.id} packages={game.packages} live={game.status==='Live'} stale={stale}/>}
+ {closed?<Card><CardHeader><CardTitle>{game.status==='Completed'?"Game selesai":"Game sedang ditutup"}</CardTitle></CardHeader><CardContent>Pengiriman baru telah ditutup. Hasil yang diterima tetap disimpan.</CardContent></Card>:null}
  </>;
 }

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, boolean, timestamp, uniqueIndex, index, integer, bigint, check } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, uniqueIndex, index, integer, bigint, check, foreignKey, primaryKey } from "drizzle-orm/pg-core";
 const time = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 
 export const user = pgTable("users", {
@@ -73,3 +73,14 @@ export const events = pgTable("war_events", {
   actorId:text("actor_user_id").references(()=>user.id), type:text("event_type").notNull(), packageId:text("package_id").references(()=>packages.id),
   submissionId:text("submission_id"), sequence:integer("sequence"), rank:integer("rank"), createdAt:time("created_at").notNull().defaultNow(),
 },t=>[index("events_game_cursor_idx").on(t.gameId,t.eventId)]);
+
+export const submissions = pgTable("war_submissions", {
+ id:text("id").primaryKey(), gameId:text("game_id").notNull().references(()=>games.id), userId:text("user_id").notNull().references(()=>user.id),
+ sequence:integer("sequence").notNull(), acceptedAt:time("accepted_at").notNull().defaultNow(),
+},t=>[uniqueIndex("submission_game_user_unique").on(t.gameId,t.userId),uniqueIndex("submission_game_sequence_unique").on(t.gameId,t.sequence),uniqueIndex("submission_game_id_unique").on(t.gameId,t.id),uniqueIndex("submission_game_id_user_unique").on(t.gameId,t.id,t.userId),check("submission_sequence_positive",sql`${t.sequence} > 0`),foreignKey({columns:[t.gameId,t.userId],foreignColumns:[participants.gameId,participants.userId]})]);
+export const preferences = pgTable("war_preferences", {
+ submissionId:text("submission_id").notNull(),gameId:text("game_id").notNull(),rank:integer("rank").notNull(),packageId:text("package_id").notNull(),
+},t=>[primaryKey({columns:[t.submissionId,t.rank]}),uniqueIndex("preference_package_unique").on(t.submissionId,t.packageId),uniqueIndex("preference_rank_package_unique").on(t.submissionId,t.rank,t.packageId),check("preference_rank_positive",sql`${t.rank}>0`),foreignKey({columns:[t.gameId,t.submissionId],foreignColumns:[submissions.gameId,submissions.id]}),foreignKey({columns:[t.gameId,t.packageId],foreignColumns:[packages.gameId,packages.id]})]);
+export const allocations = pgTable("war_allocations", {
+ id:text("id").primaryKey(),submissionId:text("submission_id").notNull().unique(),gameId:text("game_id").notNull(),userId:text("user_id").notNull(),packageId:text("package_id").notNull(),awardedRank:integer("awarded_rank").notNull(),allocatedAt:time("allocated_at").notNull().defaultNow(),
+},t=>[uniqueIndex("allocation_game_user_unique").on(t.gameId,t.userId),index("allocation_package_idx").on(t.gameId,t.packageId),foreignKey({columns:[t.gameId,t.submissionId,t.userId],foreignColumns:[submissions.gameId,submissions.id,submissions.userId]}),foreignKey({columns:[t.gameId,t.packageId],foreignColumns:[packages.gameId,packages.id]}),foreignKey({columns:[t.submissionId,t.awardedRank,t.packageId],foreignColumns:[preferences.submissionId,preferences.rank,preferences.packageId]})]);

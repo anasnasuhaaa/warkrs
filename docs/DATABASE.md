@@ -85,3 +85,18 @@ Use Drizzle ORM migrations. Names/types below are a recommended starting point, 
 ## 4. Migrations and seed data
 
 Use reviewed, versioned migrations. No auto destructive schema push in production. Minimal development seed: one admin account provisioned securely, a few *fictional* students/games/packs, never real imported email addresses. Do not run data-wiping seeds against an existing staging/production database.
+
+## Implemented SQL safeguards
+
+The implementation uses text UUID identifiers for application/auth compatibility.
+Preferences also store `game_id`. Composite foreign keys tie submission, participant,
+package and awarded preference to the same game. Unique indexes enforce one
+submission/allocation per user/game, one sequence per game and unique preference
+ranks/packages. Reviewed migration 0005 creates referenced indexes before the FKs
+(the generator emitted the reverse order).
+
+Deferred SQL constraint triggers reject committed submissions without a complete
+ranking and exactly one allocation, and reject occupancy counters that differ from
+allocation records. Immutable outcome/audit/event triggers reject updates/deletes.
+Normal application operations never reset historical data. Database owners can
+alter schema; production operations must restrict owner credentials separately.
