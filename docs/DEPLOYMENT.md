@@ -74,3 +74,17 @@ Use `.env.example` with **placeholders only**. For Neon, use the appropriate poo
 - Neon docs: https://neon.com/docs
 - Drizzle transactions: https://orm.drizzle.team/docs/transactions
 - shadcn/ui existing Next.js project: https://ui.shadcn.com/docs/installation/next
+
+## Implemented foundation (Phase 01)
+
+- Node.js 22, existing Next.js 16 App Router, npm lockfile and standalone Docker output.
+- `pg` + Drizzle supports interactive transactions; lazy pool size is 5 per instance,
+  with connection/statement timeouts. Neon URLs must enable SSL using `sslmode=require`;
+  do not disable TLS verification. Use the direct URL for Drizzle migrations.
+- `npm run db:check` is an operator-only read-only connectivity probe. `/api/health`
+  is process liveness, not a claim that PostgreSQL or email delivery is ready.
+- Docker uses separate dependency, tooling, build and unprivileged runtime stages.
+  Compose requires explicit secrets, health-checks PostgreSQL, persists its volume,
+  publishes web only on loopback and does not publish the database.
+- No runtime database initialization or migrations occur during static builds.
+- Phase 01 does not implement accounts, game data, email or allocations.
