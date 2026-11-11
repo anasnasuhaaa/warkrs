@@ -1,0 +1,14 @@
+# Replace this hostname; public HTTPS and DNS are operator responsibilities.
+war.example.org {
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:3000 {
+    # Overwrite forwarded client headers; keep the Node port loopback-only.
+    header_up X-Forwarded-For {remote_host}
+    flush_interval -1
+  }
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+    -Server
+  }
+}

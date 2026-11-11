@@ -14,9 +14,14 @@ export default defineConfig({
   webServer: process.env.BROWSER_BASE_URL
     ? undefined
     : {
-        command: "npm run start -- --port 3100",
+        command: "npm run start",
         url: "http://localhost:3100/api/health",
         reuseExistingServer: false,
-        env: { APP_BASE_URL: "http://localhost:3100", REALTIME_MODE: "sse" },
+        env: {
+          APP_BASE_URL: "http://localhost:3100",
+          PORT: "3100",
+          HOSTNAME: "127.0.0.1",
+          REALTIME_MODE: "sse",
+        },
       },
 });

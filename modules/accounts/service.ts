@@ -6,7 +6,7 @@ import { parse } from "csv-parse/sync";
 import { Resend } from "resend";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { account, accountTokens, session, user } from "@/db/schema";
+import { account, accountTokens, auditLogs, session, user } from "@/db/schema";
 import { Actor, adminOnly } from "@/lib/authorization";
 import { AppError, invariant } from "@/lib/errors";
 import { readAppUrl } from "@/lib/config";
@@ -95,6 +95,20 @@ export async function importStudents(
         status: inserted.length ? "inserted" : "existing",
       });
     }
+    await tx
+      .insert(auditLogs)
+      .values({
+        id: randomUUID(),
+        adminId: actor.id,
+        action: "STUDENTS_IMPORTED",
+        metadata: JSON.stringify({
+          inserted: result.filter((r) => r.status === "inserted").length,
+          existing: result.filter((r) => r.status === "existing").length,
+          rejected: result.filter(
+            (r) => r.status === "invalid" || r.status === "duplicate",
+          ).length,
+        }),
+      });
     return result;
   });
 }
@@ -129,15 +143,13 @@ export async function issueToken(
           isNull(accountTokens.consumedAt),
         ),
       );
-    await tx
-      .insert(accountTokens)
-      .values({
-        id: randomUUID(),
-        userId,
-        purpose,
-        tokenHash: digest(token),
-        expiresAt: sql`clock_timestamp() + interval '1 hour'`,
-      });
+    await tx.insert(accountTokens).values({
+      id: randomUUID(),
+      userId,
+      purpose,
+      tokenHash: digest(token),
+      expiresAt: sql`clock_timestamp() + interval '1 hour'`,
+    });
   });
   return token;
 }

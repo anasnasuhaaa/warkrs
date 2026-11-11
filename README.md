@@ -1,41 +1,83 @@
 # War KRS
 
-Aplikasi kesepakatan paket KRS angkatan, bukan portal KRS resmi kampus.
+Aplikasi kesepakatan paket KRS angkatan, **bukan portal KRS resmi kampus**.
+Next.js App Router modular monolith, PostgreSQL/Drizzle, Better Auth, Resend,
+official shadcn/ui. UI in Bahasa Indonesia; authoritative time/order lives in the DB.
 
-## Local development
+Implemented through Phase 08: invite-only account import/activation/recovery,
+Draft games/packages/whitelists, frozen publication, affirmative join during
+Upcoming/Live, all-package sequential ranking, one immutable transactional FCFS
+allocation, admin End War, authorized named winners/events, polling and optional
+bounded Docker SSE, responsive interfaces and reproducible verification.
 
-Requires Node.js 22, npm (use `package-lock.json`), and PostgreSQL 17.
+## Local setup
+
+Requires Node.js 22, npm (`package-lock.json`), PostgreSQL 17.
 
 ```sh
 npm ci
 cp .env.example .env.local
-# Replace placeholders; never commit credentials.
+# Replace placeholders, use a separate development DB; EMAIL_MODE=disabled.
+npm run db:migrate
+npm run db:check
 npm run dev
 ```
 
-Use `npm run typecheck`, `npm run lint`, and `npm run build` for focused checks.
-The build needs no database or email secrets. `npm run db:check` performs a read-only
-`SELECT 1`. `npm run db:generate` creates reviewed SQL migrations and
-`npm run db:migrate` applies them using `DIRECT_DATABASE_URL` (falls back to
-`DATABASE_URL`). Domain schema begins in Phase 02; Phase 01 creates no dummy tables.
+Use secure environment injection for `BOOTSTRAP_NAME`, `BOOTSTRAP_EMAIL`, and
+`BOOTSTRAP_PASSWORD` (>=16 characters), then `npm run admin:bootstrap` once.
+It refuses an existing admin. Clear bootstrap variables immediately. There is no
+public signup or default account. Import `name,email` CSV at `/admin/students`,
+review rows, then explicitly send activation when Resend testing is configured.
 
-## Architecture
+`.env.local` is loaded by Next.js and operator scripts; shell environment values
+have precedence. The example contains placeholders only. Do not commit secrets,
+recipient lists, backups or generated test artifacts.
 
-The existing root `app/` App Router and npm conventions are preserved.
-`components/ui` contains official shadcn primitives, `components/domain` composes
-application views, `modules` holds business use cases, `lib` configuration/helpers,
-and `db` PostgreSQL/Drizzle setup. Never keep authoritative game state in memory.
+## Checks
 
-## Hosting
+```sh
+npm run typecheck
+npm run lint
+npm run build
+# Build needs no DB/auth/email credentials; npm start serves standalone output.
+```
 
-See [deployment instructions](docs/DEPLOYMENT.md). Build with `npm run build` on
-Vercel; use a Neon pooled PostgreSQL URL for application transactions and a direct
-URL for migrations. Polling requires no perpetual function.
+For database-backed tests, explicitly provide `DATABASE_URL` ending in `_test`, a
+>=32-character test `AUTH_SECRET`, and `EMAIL_MODE=disabled`. Migrate that DB first.
+`npm test` runs real PostgreSQL transaction/security tests, including 200/500-client
+bursts. It never resets historical results.
 
-For Docker, create an ignored `.env` from the example and replace every placeholder.
-Use URL-safe database credentials (or percent-encode the password in database URLs).
-Run `docker compose up --build -d`; the web port binds to loopback for a reverse
-proxy and PostgreSQL has no published port. The named volume preserves data.
-Do not run `docker compose down -v` against event data. Run migrations as an
-explicit operator step, never automatically during builds. HTTPS, live provider
-credentials and external deployment are separate operator responsibilities.
+```sh
+npx playwright install chromium
+npm run test:browser:fixtures
+npm run test:browser
+```
+
+Browser checks use the test DB, start the production server on port 3100, and cover
+320/375/768/1440px, axe accessibility, consent/ranking/results/admin and reconnect.
+Regenerate fixtures before each full browser run. Private generated fixtures,
+traces and screenshots stay in ignored directories.
+
+## Docker and staging
+
+Create an ignored `.env` from the example with actual URL-safe secrets.
+
+```sh
+docker compose --profile tools build web tooling
+docker compose up -d db
+docker compose run --rm tooling
+docker compose up -d web
+```
+
+The tooling profile explicitly applies reviewed migrations. Web is non-root,
+loopback port 3000; PostgreSQL has a persistent volume and no host port. Never run
+`down -v` against event data. Put HTTPS/reverse proxy in front of the web service.
+`/api/health` is process liveness; `/api/ready` checks DB connectivity.
+
+Vercel uses the same app and `npm run build`, with Neon pooled `DATABASE_URL`,
+direct migration URL, exact HTTPS `APP_BASE_URL`, secret and Resend configuration.
+Default realtime is polling; no worker or perpetual Vercel stream is required.
+
+See [deployment and backups](docs/DEPLOYMENT.md), [safe load tests](docs/LOAD_TESTING.md),
+[event runbook](docs/RUNBOOK.md), and [verification reports](docs/verification/).
+No Git push or external deployment is performed by these scripts.

@@ -1,6 +1,6 @@
 # Phase 02 verification
 
-PASS on PostgreSQL 17.7 container (loopback-only isolated `war_krs_test`), Node 22:
+PASS on PostgreSQL 17 container (loopback-only isolated `war_krs_test`), Node 22:
 - Migrations and read-only connectivity probe.
 - Five database-backed auth/security tests: public signup/unauthenticated denial,
   normalized import/duplicates/wrong role, concurrent single-use activation and

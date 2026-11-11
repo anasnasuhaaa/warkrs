@@ -159,3 +159,90 @@ SSE. Fixture accounts use `example.invalid`; generated passwords, tokens, cookie
 traces and screenshots live only in ignored `.test-artifacts`/`test-results`.
 Do not commit or share those directories. Recreate fixtures before each full run;
 immutable accepted games are never reset for testing.
+
+## Production build and explicit operations (Phase 08)
+
+`npm run build` also copies static/public assets into `.next/standalone`.
+`npm start` runs its Node server; set `PORT` and `HOSTNAME` as needed. This removes
+reliance on `next start` for standalone output. The Docker runner is non-root and
+health-checks `/api/ready`; `/api/health` remains liveness. Readiness is connectivity,
+not an audit of schema/data invariants; apply migrations before opening the app.
+
+```sh
+docker compose --profile tools build web tooling
+docker compose up -d db
+docker compose run --rm tooling
+docker compose up -d web
+docker compose ps
+```
+
+The profiled tooling image holds migration/CLI dependencies; they are not needed
+in the traced runtime image. `scripts/migrate.ts` uses the same versioned Drizzle
+SQL/journal and exits nonzero with a safe message on failure. It never pushes a
+schema or resets data. For bootstrap, securely export the three BOOTSTRAP variables
+and pass them using `docker compose run --rm -e BOOTSTRAP_NAME -e BOOTSTRAP_EMAIL
+-e BOOTSTRAP_PASSWORD tooling npm run admin:bootstrap`; clear them afterward.
+
+### Backup and isolated restore rehearsal
+
+Store backups outside Git with restricted permissions/encryption and off-host
+retention. These commands assume the configured default Compose project; use the
+same project/env-file arguments consistently. Do not print dump contents.
+
+```sh
+umask 077
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > /secure/path/war-krs.dump
+# New isolated DB only; never overwrite the event database.
+docker compose exec -T db sh -c 'createdb -U "$POSTGRES_USER" war_krs_restore_test'
+docker compose exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d war_krs_restore_test --no-owner --exit-on-error' < /secure/path/war-krs.dump
+```
+
+Verify tables/migration journal, account/session data, submitted rankings,
+allocation counts/counters and append-only triggers on the isolated restore. Take
+another restricted backup after completion. Restart with `docker compose restart`;
+volumes persist. `docker compose down` also preserves named volumes. **Do not use
+`down -v` or destructive seeds against event data.**
+
+Use `ops/Caddyfile.example` as a host-level reverse-proxy example, set the actual
+hostname/DNS and verify issued HTTPS. The web port stays loopback-only; PostgreSQL
+has no host mapping. Use a separate migration owner/runtime DB role in hardened
+production, retain trigger enforcement and prevent runtime schema changes. Never
+expose the tooling profile as a public service.
+
+### Vercel + Neon staging checklist
+
+Use Node 22 and the committed npm lockfile; build command `npm run build`. Configure
+staging-only exact HTTPS `APP_BASE_URL`, random `AUTH_SECRET`, pooled PostgreSQL
+`DATABASE_URL` with TLS, direct `DIRECT_DATABASE_URL` for an explicit operator
+migration step, test Resend settings and `REALTIME_MODE=polling`. Do not use the
+Neon HTTP client for allocation. The selected `pg` driver uses one connection for
+BEGIN/row lock/queries/COMMIT, compatible with transaction pooling; queries do not
+use named prepared statements or session-scoped game state. Keep DB/functions
+nearby and measure cold starts/pool contention with your actual Neon service.
+
+Vercel's `VERCEL` environment disables the SSE route. No background job/daemon is
+needed for opening, deadline enforcement, admission/allocation or recovery. Verify
+actual staging function duration and connection limits before a real rehearsal.
+External account connection/deployment, live email and production HTTPS require
+operator configuration and have not been performed by this implementation.
+
+### Dependency audit caveat
+
+No high/critical npm advisories were reported in the local audit. Moderate/low
+transitive advisories remain in CLI/development tooling (including Drizzle's legacy
+esbuild helper and shadcn registry tooling). The shadcn CLI is a dev dependency;
+compiled UI primitives/CSS run without its CLI. Do not start public development or
+Drizzle Studio servers in production. Do not apply npm's suggested forced downgrade
+of Drizzle/shadcn or override transitive majors without validation.
+
+The inherited ESLint 9 is EOL. The installed official Next config's React plugin
+currently declares ESLint support through 9, so 9.39.5 is retained rather than
+committing an unsupported peer tree; track the compatible upstream upgrade. This
+is a known toolchain maintenance limitation, not a statement of zero dependencies
+with advisories. Re-audit and rebuild before an external production release.
+
+References checked during implementation: [ESLint support policy](https://eslint.org/version-support/),
+[Next.js self-hosting](https://nextjs.org/docs/app/guides/self-hosting),
+[Neon pooling](https://neon.com/docs/connect/connection-pooling),
+[Better Auth sessions](https://better-auth.com/docs/concepts/session-management),
+[Drizzle transactions](https://orm.drizzle.team/docs/transactions).

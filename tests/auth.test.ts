@@ -51,6 +51,9 @@ test("admin import normalizes and preserves existing accounts; invalid rows and 
     .from(user)
     .where(eq(user.email, `${id}@example.invalid`));
   assert.equal(saved.name, "Fiksi");
+  const audits=await getDb().execute(sql`SELECT metadata FROM admin_audit_logs WHERE admin_user_id=${admin.id} AND action='STUDENTS_IMPORTED'`);
+  assert.equal(audits.rows.length,2);
+  assert.ok(!JSON.stringify(audits.rows).includes("example.invalid"));
   assert.throws(() => adminOnly({ id: "x", name: "x", role: "STUDENT" }), {
     code: "FORBIDDEN",
   });
