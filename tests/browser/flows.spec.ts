@@ -1,16 +1,32 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
 import ExcelJS from "exceljs";
 const fixtures = JSON.parse(
   readFileSync(".test-artifacts/browser-fixtures.json", "utf8"),
 );
-async function login(page: Page, who = fixtures.student) {
+// Reuse real library sessions for layout tests; do not weaken production rate limits.
+const loginSessions = new Map<string, Awaited<ReturnType<BrowserContext["cookies"]>>>();
+async function login(page: Page, who = fixtures.student, fresh = false) {
+  const destination = who.role === "ADMIN" ? "/admin" : "/games";
+  const cached = loginSessions.get(who.id);
+  if (cached && !fresh) {
+    await page.context().addCookies(cached);
+    const checked = await page.request.get("/api/games");
+    if (checked.ok()) {
+      await page.goto(destination);
+      await expect(page).toHaveURL(who.role === "ADMIN" ? /\/admin$/ : /\/games$/);
+      return;
+    }
+    await page.context().clearCookies();
+    loginSessions.delete(who.id); // Explicit logout/revocation must still work.
+  }
   await page.goto("/login");
   await page.getByLabel("Email", { exact: true }).fill(who.email);
   await page.getByLabel("Kata sandi", { exact: true }).fill(fixtures.password);
   await page.getByRole("button", { name: "Masuk ke War KRS" }).click();
   await expect(page).toHaveURL(who.role === "ADMIN" ? /\/admin$/ : /\/games$/);
+  loginSessions.set(who.id, await page.context().cookies());
 }
 async function noOverflow(page: Page) {
   expect(
@@ -389,8 +405,8 @@ test("Jakarta calendar and full-minute time selection preserve the server payloa
     const payload = (await changedRequest).postDataJSON();
     expect(payload.startsAt).toBe(`${localDay}T16:59:00.000Z`);
     expect(payload.endsAt).toBe(`${localDay}T17:00:00.000Z`);
-    expect(payload.userIds).toEqual(
-      fixtures.draft.whitelist.map((p: { userId: string }) => p.userId),
+    expect(payload.userIds.toSorted()).toEqual(
+      fixtures.draft.whitelist.map((p: { userId: string }) => p.userId).toSorted(),
     );
     await expect(
       page.getByRole("status").filter({ hasText: "Draf tersimpan" }),
@@ -424,7 +440,7 @@ test("Jakarta calendar and full-minute time selection preserve the server payloa
     await page.getByRole("button", { name: "Simpan draf" }).click();
     await expect(
       page
-        .getByRole("status")
+        .getByRole("alert")
         .filter({ hasText: "Waktu selesai harus setelah" }),
     ).toBeVisible();
     await noOverflow(page);
@@ -647,10 +663,9 @@ test("Excel template, partial import, row feedback and activation action", async
   await expect(
     page.getByRole("cell", { name: email, exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Kirim aktivasi", exact: true })
-    .click();
-  await expect(page.getByRole("status")).toContainText(
+  await page.getByRole("button", { name: "Aksi Mahasiswa Fiksi Excel", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Kirim aktivasi", exact: true }).click();
+  await expect(page.locator("[data-sonner-toast][data-type=error]").filter({ hasText: "Pengiriman email belum diaktifkan" })).toContainText(
     "Pengiriman email belum diaktifkan",
   );
   await noOverflow(page);
@@ -762,7 +777,7 @@ test("manual student CRUD and protected deletion remain accessible across screen
 });
 
 test("session survives logo, home and login; explicit logout clears it", async ({ page }) => {
-  await login(page);
+  await login(page, fixtures.student, true);
   await page.getByRole("link", { name: "War KRS, beranda" }).click();
   await expect(page).toHaveURL(/\/games$/);
   await page.goto("/");
@@ -824,4 +839,92 @@ test("admin fields show accessible Zod errors and action menu supports keyboard"
   await expect(page.getByLabel("Nama paket 1")).toHaveAttribute("aria-invalid", "true");
   await noOverflow(page);
   await accessibility(page);
+});
+
+test("published visibility, direct Live admission, authenticated Excel download and safe deletion", async ({ page, browser }) => {
+  await page.setViewportSize({ width: 375, height: 900 });
+  await login(page, fixtures.admin);
+  const game = fixtures.managementLive;
+  await page.goto(`/admin/games/${game.id}`);
+  await expect(page.getByRole("button", { name: "Hapus War Permanen", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Sembunyikan War", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Tampilkan War", exact: true })).toBeVisible();
+  await page.goto("/admin/games");
+  await page.setViewportSize({ width: 1024, height: 900 });
+  const row = page.getByRole("row").filter({ has: page.locator(`a[href="/admin/games/${game.id}"]`) });
+  await expect(row.getByText("Disembunyikan", { exact: true })).toBeVisible();
+  await expect(row.getByRole("button", { name: "Tampilkan War", exact: true })).toBeVisible();
+  const studentContext = await browser.newContext();
+  try {
+    const studentPage = await studentContext.newPage();
+    await login(studentPage);
+    await expect(studentPage.getByText(game.title, { exact: true })).toHaveCount(0);
+    await studentPage.goto(`/games/${game.id}`);
+    await join(studentPage);
+    await rank(studentPage);
+    await studentPage.getByRole("button", { name: "Kirim urutan paket" }).click();
+    await expect(studentPage.getByText("Alokasi Anda diterima")).toBeVisible();
+    const denied = await studentPage.request.get(`/api/admin/games/${game.id}/export`);
+    expect(denied.status()).toBe(403);
+    const removeDenied = await studentPage.request.delete(`/api/admin/games/${game.id}`, { headers: { Origin: new URL(studentPage.url()).origin }, data: {} });
+    expect(removeDenied.status()).toBe(403);
+  } finally { await studentContext.close(); }
+  await page.goto(`/admin/games/${game.id}`);
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: /Export Hasil War/ }).click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toMatch(/-sementara\.xlsx$/);
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(new Uint8Array(readFileSync((await download.path())!)).buffer);
+  expect(workbook.worksheets.length).toBe(2);
+  expect((workbook.worksheets[0].getRow(1).values as unknown[]).slice(1)).toEqual(["No", "Nama Lengkap", "NIM", "Email", "Waktu Diterima"]);
+  expect(workbook.getWorksheet("Paket A")!.getCell("B2").value).toBe(fixtures.student.name);
+  expect(workbook.getWorksheet("Paket A")!.getCell("E2").value).toMatch(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} WIB/);
+  await page.getByRole("button", { name: "Tampilkan War", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Sembunyikan War", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Akhiri war", exact: true }).click();
+  await page.getByLabel("Alasan penghentian (minimal 10 karakter)").fill("Pengujian pengelolaan browser selesai");
+  await page.getByRole("button", { name: "Ya, akhiri war", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Selesai", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Hapus War Permanen", exact: true })).toBeEnabled();
+  const finalDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export Hasil War", exact: true }).click();
+  expect((await finalDownload).suggestedFilename()).toMatch(/-final\.xlsx$/);
+  for (const width of [320, 375, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await noOverflow(page);
+  }
+  await page.getByRole("button", { name: "Hapus War Permanen", exact: true }).click();
+  const dialog = page.getByRole("alertdialog");
+  await dialog.getByRole("button", { name: "Ya, Hapus War Permanen", exact: true }).click();
+  await expect(dialog.getByLabel(`Ketik judul War: ${game.title}`, { exact: true })).toHaveAttribute("aria-invalid", "true");
+  await dialog.getByLabel(`Ketik judul War: ${game.title}`, { exact: true }).fill(game.title);
+  await dialog.getByLabel("Alasan penghapusan (minimal 10 karakter)").fill("Pembersihan War fiksi browser");
+  await dialog.getByRole("checkbox").check();
+  await page.setViewportSize({ width: 320, height: 900 });
+  await noOverflow(page);
+  await accessibility(page);
+  await dialog.getByRole("button", { name: "Ya, Hapus War Permanen", exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/games$/);
+  const response = await page.request.get(`/api/games/${game.id}`);
+  expect(response.status()).toBe(404);
+  await page.goto(`/admin/games/${game.id}`);
+  await expect(page.getByRole("heading", { name: "Halaman tidak ditemukan" })).toBeVisible();
+});
+
+test("Draft, Upcoming and Completed simulation deletion preserves unrelated War", async ({ page }) => {
+  await login(page, fixtures.admin);
+  for (const game of [fixtures.managementDraft, fixtures.managementUpcoming, fixtures.managementCompleted]) {
+    await page.goto(`/admin/games/${game.id}`);
+    await page.getByRole("button", { name: "Hapus War Permanen", exact: true }).click();
+    const dialog = page.getByRole("alertdialog");
+    await dialog.getByLabel(`Ketik judul War: ${game.title}`, { exact: true }).fill(game.title);
+    await dialog.getByLabel("Alasan penghapusan (minimal 10 karakter)").fill("Pembersihan simulasi browser");
+    await dialog.getByRole("checkbox").check();
+    await dialog.getByRole("button", { name: "Ya, Hapus War Permanen", exact: true }).click();
+    await expect(page).toHaveURL(/\/admin\/games$/);
+    expect((await page.request.get(`/api/games/${game.id}`)).status()).toBe(404);
+  }
+  await page.goto(`/admin/games/${fixtures.completed.id}`);
+  await expect(page.getByRole("heading", { name: fixtures.completed.title, exact: true })).toBeVisible();
 });

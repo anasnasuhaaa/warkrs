@@ -125,3 +125,51 @@ which explicitly discloses NIM visibility. Published older versions are unchange
 public winner responses mask NIM unless the recipient consented to that War's
 current `nim-v2:` version. This applies to admin winner views too; authenticated
 admin result exports are a separate administrative capability.
+
+War visibility and deletion are separate from lifecycle. Hidden published Wars
+remain authorized at direct URLs, including a joined participant's Live submission
+path; only student discovery excludes them. Visibility changes are audited.
+
+Migrations `0008_war_visibility.sql` and `0009_controlled_war_deletion.sql` add
+visibility and a narrowly scoped permanent deletion path. Apply both before running
+the updated app. Prior migrations are unchanged. Deletion is an explicit exception
+to retaining historical outcomes, never a reset: an active admin must type the exact
+title, provide a 10–500 character reason and attest that this is a simulation/test
+War (the existing model does not otherwise distinguish simulations). Live and
+unreconciled Closing Wars cannot be deleted. Draft/Upcoming require zero accepted
+submissions; Completed requires reconciled closure and complete allocations.
+
+`public.delete_war_permanently` rechecks eligibility under the common game row lock,
+then removes events, allocations, preferences, submissions, membership, packages,
+War-scoped audits and the War in one transaction. Its independent deletion audit
+retains the deleted ID/title, admin, reason, counts, simulation attestation and DB
+time with `game_id = NULL`. Student/authentication data and unrelated history remain.
+The private permit is bound to one War, transaction and backend, cannot be set via
+client input or PostgreSQL settings, and permits DELETE only. Ordinary configuration,
+consent, history and quota guards remain enabled. Failure rolls everything back.
+Back up the database before intentional permanent cleanup; there is no undo.
+
+The migration owner can execute the deletion function. If production uses a distinct
+runtime role, the operator must explicitly grant only this function to that role:
+`GRANT EXECUTE ON FUNCTION public.delete_war_permanently(text,text,text,text,boolean)
+TO your_runtime_role;`. Do not grant runtime access to `war_admin_private`, its tables,
+DDL privileges or membership in the migration-owner role. Public execution is revoked.
+The server verifies the session/role before passing the admin ID; possession of a
+privileged database credential remains an administrative trust boundary.
+
+Admin-only result downloads use ExcelJS and repeatable-read committed snapshots:
+one sheet per package, FCFS sequence order, text identity cells (no formula inference),
+receipt time from `accepted_at` with full WIB date and milliseconds. Non-Completed
+exports are labelled temporary in the UI, filename, workbook subject and print header.
+
+Verification of the targeted improvements (2026-11-12): lint, typecheck and the
+production standalone build passed. All 50 service/unit/integration tests passed
+against isolated PostgreSQL 18, including 200/500 concurrent submissions, deletion
+rollback and restricted runtime-role permissions. All 21 browser flows were verified
+with Chromium, five viewport widths and axe checks: the consolidated browser run
+passed 20 flows, and the remaining management flow passed its targeted retry after
+an ambiguous repeated-fixture title selector was scoped to the War ID. Test layout
+sessions are reused to respect the unchanged production sign-in rate limits.
+Both incremental migrations and a fresh empty database migration were verified.
+No live Resend delivery, Docker image build, Neon/Vercel deployment, or separate
+HTTP load harness was run; these local checks are not production capacity evidence.

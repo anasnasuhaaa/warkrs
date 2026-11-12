@@ -34,3 +34,10 @@ export const endWarInput = z.object({
   confirmed: z.literal(true),
 });
 export type DraftInput = z.infer<typeof draftInput>;
+
+export const visibilityInput = z.object({ isHidden: z.boolean() }).strict();
+export const deleteWarInput = z.object({
+  confirmation: z.string().min(1, "Ketik judul War.").max(150),
+  reason: z.string().trim().min(10, "Alasan minimal 10 karakter.").max(500),
+  simulationConfirmed: z.literal(true, { error: "Pastikan War ini simulasi atau pengujian." }),
+}).strict();

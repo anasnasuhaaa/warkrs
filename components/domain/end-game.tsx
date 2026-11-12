@@ -71,7 +71,7 @@ export function EndGame({ id, onEnded }: { id: string; onEnded?: () => void }) {
                 toast.success("War diakhiri.");
                 setOpen(false);
                 if (onEnded) onEnded();
-                else router.refresh();
+                router.refresh();
               } catch (e) {
                 toast.error(e instanceof Error ? e.message : "Gagal mengakhiri War.");
                 setMessage(

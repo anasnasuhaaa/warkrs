@@ -1,3 +1,4 @@
+import { WarVisibility } from "./game-management";
 import Link from "next/link";
 import { ArrowUpRight, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ export function GameList({
                       {g.title}
                     </Link>
                     <StatusBadge status={g.status} />
+                    {g.isHidden && <p className="mt-1 text-xs text-muted-foreground">Disembunyikan</p>}
                   </TableCell>
                   <TableCell className="py-5 text-xs leading-6">
                     <span className="block">{jakarta(g.startsAt)}</span>
@@ -74,7 +76,8 @@ export function GameList({
                   <TableCell className="text-right tabular-nums">
                     {g.whitelistCount}
                   </TableCell>
-                  <TableCell className="pr-6 text-right">
+                  <TableCell className="space-y-2 pr-6 text-right">
+                    {g.status !== "Draft" && <div><WarVisibility id={g.id} isHidden={g.isHidden} /></div>}
                     <Button size="sm" variant="ghost" asChild>
                       <Link href={`/admin/games/${g.id}`}>
                         Buka
@@ -99,6 +102,7 @@ export function GameList({
           <Card key={g.id} className="justify-between shadow-none">
             <CardHeader className="gap-3">
               <StatusBadge status={g.status} />
+              {admin && g.isHidden && <p className="text-xs text-muted-foreground">Disembunyikan</p>}
               <CardTitle className="text-base font-semibold leading-relaxed">
                 {g.title}
               </CardTitle>
@@ -151,7 +155,8 @@ export function GameList({
                 </div>
               </dl>
             </CardContent>
-            <CardFooter className="justify-between bg-card">
+            <CardFooter className="flex-col gap-2 bg-card">
+              {admin && g.status !== "Draft" && <WarVisibility id={g.id} isHidden={g.isHidden} />}
               <Button
                 className="w-full justify-between"
                 variant="outline"

@@ -1,6 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AppError } from "@/lib/errors";
 import { requireActor } from "@/lib/authorization";
 export async function pageActor(admin = false) {
@@ -30,4 +30,9 @@ export async function optionalPageActor() {
 }
 export function actorHome(actor: { role: string } | null) {
   return actor ? (actor.role === "ADMIN" ? "/admin" : "/games") : "/login";
+}
+
+export async function pageData<T>(read: () => Promise<T>): Promise<T> {
+  try { return await read(); }
+  catch (error) { if (error instanceof AppError && error.status === 404) notFound(); throw error; }
 }

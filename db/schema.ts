@@ -126,6 +126,7 @@ export const games = pgTable(
   {
     id: text("id").primaryKey(),
     title: text("title").notNull(),
+    isHidden: boolean("is_hidden").notNull().default(false),
     termsText: text("terms_text").notNull().default(""),
     termsVersion: text("terms_version").notNull(),
     startsAt: time("starts_at").notNull(),

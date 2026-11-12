@@ -1,3 +1,4 @@
+import { GameManagement } from "@/components/domain/game-management";
 import Link from "next/link";
 import { ArrowLeft, LockKeyhole, CalendarDays } from "lucide-react";
 import { AdminLive } from "@/components/domain/admin-live";
@@ -7,7 +8,7 @@ import { StatusBadge } from "@/components/domain/status-badge";
 import type { RoomGame } from "@/components/domain/game-room";
 import { gameDetail } from "@/modules/games/detail";
 import { monitorGame } from "@/modules/games/lifecycle";
-import { pageActor } from "@/lib/page-auth";
+import { pageActor, pageData } from "@/lib/page-auth";
 import { getDraft } from "@/modules/games/admin";
 import { listStudents } from "@/modules/accounts/service";
 import { GameEditor } from "@/components/domain/game-editor";
@@ -19,9 +20,10 @@ export default async function Page({
   params: Promise<{ gameId: string }>;
 }) {
   const actor = await pageActor(true);
-  const game = await getDraft(actor, (await params).gameId);
-  const detail = await gameDetail(actor, game.id);
-  const monitor = await monitorGame(actor, game.id);
+  const id = (await params).gameId;
+  const game = await pageData(() => getDraft(actor, id));
+  const detail = await pageData(() => gameDetail(actor, game.id));
+  const monitor = await pageData(() => monitorGame(actor, game.id));
   return (
     <>
       <Link
@@ -35,6 +37,7 @@ export default async function Page({
         title={game.title}
         action={<StatusBadge status={detail.status} />}
       />
+      <GameManagement id={game.id} title={game.title} status={detail.status} isHidden={game.isHidden} published={Boolean(game.publishedAt)} />
       {!game.publishedAt ? (
         <GameEditor
           students={await listStudents(actor)}

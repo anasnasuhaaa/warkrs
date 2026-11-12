@@ -21,6 +21,7 @@ export async function gameDetail(actor: Actor, id: string) {
   );
   await reconcileGame(id);
   const [fresh] = await getDb().select().from(games).where(eq(games.id, id));
+  invariant(fresh, "NOT_FOUND", "War tidak ditemukan.", 404);
   const clock = await getDb().execute(sql`select clock_timestamp() as now`);
   const serverNow = new Date(clock.rows[0].now as string);
   const ps = await getDb()

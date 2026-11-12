@@ -78,6 +78,13 @@ async function main() {
     completed.packages.map((p) => p.id),
   );
   await endGame(admin, completed.id, "Pengujian browser riwayat selesai");
+  const managementLive = await createGame("Fiksi pengelolaan Live");
+  const managementCompleted = await createGame("Fiksi penghapusan selesai");
+  const managementDraft = await createGame("Fiksi penghapusan draf", 600000, false);
+  const managementUpcoming = await createGame("Fiksi penghapusan mendatang", 600000);
+  await joinGame(student, managementCompleted.id, { accepted: true, acceptedTermsVersion: managementCompleted.termsVersion });
+  await submitRanking(student, managementCompleted.id, managementCompleted.packages.map(p => p.id));
+  await endGame(admin, managementCompleted.id, "Pengujian penghapusan browser");
   await mkdir(".test-artifacts", { recursive: true });
   await writeFile(
     ".test-artifacts/browser-fixtures.json",
@@ -95,6 +102,10 @@ async function main() {
       simultaneous,
       draft,
       completed,
+      managementLive,
+      managementCompleted,
+      managementDraft,
+      managementUpcoming,
     }),
     { mode: 0o600 },
   );
