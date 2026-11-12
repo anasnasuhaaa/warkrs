@@ -210,3 +210,28 @@ dibuka. Jika muncul galat tabel/kolom belum ada, periksa migrasi dan apakah kedu
 menuju database/branch yang sama. Jika email dinonaktifkan, periksa `EMAIL_MODE`;
 mengisi API key saja belum mengaktifkan pengiriman. Jika perubahan env belum terlihat,
 pastikan scope environment benar dan sudah ada deployment baru.
+
+## Diagnosis kegagalan migrasi dan kolom `is_hidden`
+
+Deployment aplikasi terbaru memerlukan migrasi `0008_war_visibility` dan
+`0009_controlled_war_deletion`. Error `column g.is_hidden does not exist` berarti
+skema database yang dipakai aplikasi belum memiliki migrasi `0008`. Menyamakan
+variabel Vercel tidak menjalankan migrasi.
+
+Periksa koneksi direct terlebih dahulu (hanya `SELECT 1`, tanpa perubahan skema):
+
+```sh
+env -u DATABASE_URL -u DIRECT_DATABASE_URL node --env-file=.env.neon ./node_modules/tsx/dist/cli.mjs scripts/db-check.ts --direct
+```
+
+Jika gagal dengan `ETIMEDOUT` atau `ENETUNREACH`, koneksi jaringan belum berhasil.
+Periksa akses PostgreSQL ke port pada URL (umumnya 5432), VPN/firewall dan pembatasan
+IP Neon; coba hotspot atau jaringan lain. Kode tersebut tidak membuktikan bagian
+jaringan mana yang memblokir. Ulangi migrasi setelah pemeriksaan koneksi berhasil.
+Skrip menampilkan tahap kegagalan dan kode error tanpa mencetak URL/kredensial,
+SQL, parameter query atau data baris.
+
+Peringatan perubahan semantik SSL dari `pg` bukan pesan kegagalan migrasi. Untuk
+menggunakan verifikasi CA dan hostname secara eksplisit, `sslmode=verify-full`
+dapat digunakan pada URL direct dan pooled. Jangan menonaktifkan verifikasi TLS
+untuk mengatasi timeout. URL database tetap rahasia dan tidak perlu dibagikan.
