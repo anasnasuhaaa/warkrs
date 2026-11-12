@@ -159,3 +159,10 @@ test("email disabled safely and resend invalidates old link", async () => {
   });
   await consumeToken(second, password, "ACTIVATION");
 });
+
+test("new passwords accept eight characters and reject seven before consuming token", async () => {
+  const student = await actor("STUDENT", false);
+  const token = await issueToken(student.id, "ACTIVATION");
+  await assert.rejects(consumeToken(token, "1234567", "ACTIVATION"));
+  await consumeToken(token, "12345678", "ACTIVATION");
+});

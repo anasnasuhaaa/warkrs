@@ -38,6 +38,8 @@ async function main() {
   const student = await create();
   const second = await create();
   const inactive = await create("STUDENT", false);
+  const resetAccount = await create();
+  const resetToken = await issueToken(resetAccount.id, "PASSWORD_RESET");
   const activationToken = await issueToken(inactive.id, "ACTIVATION");
   async function createGame(
     title: string,
@@ -86,6 +88,8 @@ async function main() {
       inactive,
       password,
       activationToken,
+      resetAccount,
+      resetToken,
       live,
       upcoming,
       simultaneous,

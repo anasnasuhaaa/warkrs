@@ -103,3 +103,11 @@ local in `AGENTS.md`, `README-CODEX.md`, `docs/` and `prompts/`; these paths are
 intentionally excluded from Git. Application source, migrations, Docker setup and
 test/load scripts remain versioned. No Git push or external deployment is performed
 by these scripts.
+
+Account onboarding uses branded HTML and plain-text Resend email (one-hour,
+ single-use fragment tokens). New passwords require 8–128 characters; activation
+and reset return to login without creating a session. Public navigation validates
+both the Better Auth session and active account before linking to the role's
+ dashboard. Cookies still come from the existing same-origin auth route; production
+requires the exact HTTPS `APP_BASE_URL`. A global shadcn Sonner toaster persists
+across routes (top-right, 2 seconds).

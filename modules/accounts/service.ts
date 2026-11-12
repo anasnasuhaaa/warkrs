@@ -9,9 +9,10 @@ import { account, accountTokens, session, user } from "@/db/schema";
 import { Actor, adminOnly } from "@/lib/authorization";
 import { invariant } from "@/lib/errors";
 import { readAppUrl } from "@/lib/config";
+import { accountEmail } from "./email";
 import { limit } from "@/lib/rate-limit";
 
-import { emailSchema } from "@/lib/account-validation";
+import { passwordSchema, emailSchema } from "@/lib/account-validation";
 export {
   importStudents,
   listStudents,
@@ -19,7 +20,7 @@ export {
   updateStudent,
   deleteStudent,
 } from "./students";
-const passwordSchema = z.string().min(12).max(128);
+
 const digest = (token: string) =>
   createHash("sha256").update(token).digest("hex");
 export async function issueToken(
@@ -125,6 +126,7 @@ async function sendLink(
   email: string,
   token: string,
   purpose: "ACTIVATION" | "PASSWORD_RESET",
+  name?: string,
 ) {
   invariant(
     process.env.EMAIL_MODE === "resend",
@@ -146,11 +148,7 @@ async function sendLink(
   const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({
     from: process.env.EMAIL_FROM,
     to: email,
-    subject:
-      purpose === "ACTIVATION"
-        ? "Aktivasi akun War KRS"
-        : "Pemulihan kata sandi War KRS",
-    text: `Buka tautan berikut untuk mengatur kata sandi. Berlaku satu jam dan hanya dapat dipakai sekali.\n${url.toString()}\nAbaikan jika Anda tidak meminta tautan ini.`,
+    ...accountEmail(purpose, url.toString(), name),
   });
   invariant(
     !error,
@@ -177,7 +175,7 @@ export async function activationEmail(actor: Actor, id: string) {
   );
   await limit(`email:${id}`, 3, 3600);
   const token = await issueToken(id, "ACTIVATION", student.email);
-  await sendLink(student.email, token, "ACTIVATION");
+  await sendLink(student.email, token, "ACTIVATION", student.name);
   return { message: "Email aktivasi dikirim." };
 }
 export async function requestReset(emailInput: string) {
@@ -198,6 +196,7 @@ export async function requestReset(emailInput: string) {
       email,
       await issueToken(current.id, "PASSWORD_RESET", email),
       "PASSWORD_RESET",
+      current.name,
     );
   return {
     message: "Jika akun aktif ditemukan, tautan pemulihan akan dikirim.",

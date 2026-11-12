@@ -56,3 +56,5 @@ export const studentInput = z.object({
   email: emailSchema,
 });
 export type StudentInput = z.infer<typeof studentInput>;
+
+export const passwordSchema = z.string().min(8, "Kata sandi minimal 8 karakter.").max(128);

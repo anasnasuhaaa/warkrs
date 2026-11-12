@@ -2,7 +2,9 @@ import Link from "next/link";
 import { ArrowRight, Clock3, ListOrdered, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-export default function Home() {
+import { optionalPageActor, actorHome } from "@/lib/page-auth";
+export default async function Home() {
+  const actor = await optionalPageActor();
   return (
     <div className="mx-auto grid w-full max-w-4xl items-center gap-10 md:grid-cols-[1fr_0.95fr] md:gap-14">
       <section className="space-y-6">
@@ -14,8 +16,8 @@ export default function Home() {
           hasil alokasimu.
         </p>
         <Button asChild size="lg">
-          <Link href="/login">
-            Masuk ke akun
+          <Link href={actorHome(actor)}>
+            {actor ? "Buka dashboard" : "Masuk ke akun"}
             <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
         </Button>

@@ -2,14 +2,17 @@ import Link from "next/link";
 import { Brand } from "./brand";
 import { Button } from "@/components/ui/button";
 import { application } from "@/modules/platform";
-export function PublicShell({ children }: { children: React.ReactNode }) {
+import { optionalPageActor, actorHome } from "@/lib/page-auth";
+export async function PublicShell({ children }: { children: React.ReactNode }) {
+  const actor = await optionalPageActor();
+  const destination = actorHome(actor);
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="border-b bg-card">
         <div className="mx-auto flex h-18 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Brand />
+          <Brand href={actor ? destination : "/"} />
           <Button variant="ghost" asChild>
-            <Link href="/login">Masuk</Link>
+            <Link href={destination}>{actor ? "Buka dashboard" : "Masuk"}</Link>
           </Button>
         </div>
       </header>

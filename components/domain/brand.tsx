@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { GraduationCap } from "lucide-react";
-export function Brand({ compact = false }: { compact?: boolean }) {
+export function Brand({ compact = false, href = "/" }: { compact?: boolean; href?: string }) {
   return (
     <Link
-      href="/"
+      href={href}
       aria-label="War KRS, beranda"
       className="flex min-w-0 items-center gap-2.5 rounded-md font-semibold text-foreground"
     >

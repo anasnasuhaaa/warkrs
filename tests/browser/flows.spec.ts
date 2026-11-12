@@ -10,7 +10,7 @@ async function login(page: Page, who = fixtures.student) {
   await page.getByLabel("Email", { exact: true }).fill(who.email);
   await page.getByLabel("Kata sandi", { exact: true }).fill(fixtures.password);
   await page.getByRole("button", { name: "Masuk ke War KRS" }).click();
-  await expect(page).toHaveURL(/\/games$/);
+  await expect(page).toHaveURL(who.role === "ADMIN" ? /\/admin$/ : /\/games$/);
 }
 async function noOverflow(page: Page) {
   expect(
@@ -56,11 +56,12 @@ test("activation once, Indonesian login and protected routes", async ({
 }) => {
   await page.goto(`/activate#${fixtures.activationToken}`);
   await page
-    .getByLabel("Kata sandi (minimal 12 karakter)", { exact: true })
+    .getByLabel("Kata sandi (minimal 8 karakter)", { exact: true })
     .fill(fixtures.password);
   await page.getByLabel("Ulangi kata sandi").fill(fixtures.password);
   await page.getByRole("button", { name: "Aktifkan akun" }).click();
-  await expect(page.getByRole("status")).toContainText("Kata sandi tersimpan");
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByText("Kata sandi tersimpan. Silakan masuk.")).toBeVisible();
   await accessibility(page);
   await login(page, fixtures.inactive);
   await page.goto("/admin");
@@ -748,4 +749,43 @@ test("manual student CRUD and protected deletion remain accessible across screen
     page.getByRole("cell", { name: fixtures.student.name, exact: true }),
   ).toBeVisible();
   await noOverflow(page);
+});
+
+test("session survives logo, home and login; explicit logout clears it", async ({ page }) => {
+  await login(page);
+  await page.getByRole("link", { name: "War KRS, beranda" }).click();
+  await expect(page).toHaveURL(/\/games$/);
+  await page.goto("/");
+  await page.getByRole("link", { name: "Buka dashboard" }).last().click();
+  await expect(page).toHaveURL(/\/games$/);
+  await page.goto("/login");
+  await expect(page).toHaveURL(/\/games$/);
+  await page.getByRole("button", { name: "Keluar", exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto("/games");
+  await expect(page).toHaveURL(/\/login$/);
+});
+test("password visibility keeps values and does not submit", async ({ page }) => {
+  await page.goto("/login");
+  const input = page.getByLabel("Kata sandi", { exact: true });
+  await input.fill("12345678");
+  await page.getByRole("button", { name: "Tampilkan kata sandi", exact: true }).click();
+  await expect(input).toHaveAttribute("type", "text");
+  await expect(input).toHaveValue("12345678");
+  await page.getByRole("button", { name: "Sembunyikan kata sandi", exact: true }).click();
+  await expect(input).toHaveAttribute("type", "password");
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test("password reset redirects without signing in or keeping its fragment", async ({ page }) => {
+  await page.goto(`/reset-password#${fixtures.resetToken}`);
+  await expect(page).toHaveURL(/\/reset-password$/);
+  await page.getByLabel("Kata sandi (minimal 8 karakter)", { exact: true }).fill("12345678");
+  await page.getByLabel("Ulangi kata sandi").fill("12345678");
+  await page.getByRole("button", { name: "Tampilkan konfirmasi kata sandi" }).click();
+  await expect(page.getByLabel("Ulangi kata sandi")).toHaveAttribute("type", "text");
+  await page.getByRole("button", { name: "Atur ulang kata sandi", exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto("/games");
+  await expect(page).toHaveURL(/\/login$/);
 });

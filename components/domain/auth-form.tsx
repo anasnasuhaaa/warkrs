@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { PasswordInput } from "./password-input";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -25,7 +27,7 @@ export function AuthForm({
   const token = useRef("");
   const router = useRouter();
   useEffect(() => {
-    if (mode === "activate" || mode === "reset-password") {
+    if ((mode === "activate" || mode === "reset-password") && window.location.hash) {
       token.current = window.location.hash.slice(1);
       window.history.replaceState(null, "", window.location.pathname);
     }
@@ -68,7 +70,8 @@ export function AuthForm({
                   email: String(form.get("email")).trim().toLowerCase(),
                   password: form.get("password"),
                 });
-                router.push("/games");
+                toast.success("Berhasil masuk.");
+                router.push("/login");
                 router.refresh();
               } else if (mode === "forgot-password") {
                 const result = await api<{ message: string }>(
@@ -84,8 +87,10 @@ export function AuthForm({
                   `/api/auth/${mode}`,
                   { token: token.current, password: form.get("password") },
                 );
-                setMessage(result.message);
-                setSuccess(true);
+                token.current = "";
+                toast.success(result.message);
+                router.replace("/login");
+                router.refresh();
               }
             } catch (error) {
               setMessage(
@@ -112,16 +117,15 @@ export function AuthForm({
           {mode !== "forgot-password" && (
             <div className="space-y-2">
               <Label htmlFor="password">
-                Kata sandi {mode !== "login" && "(minimal 12 karakter)"}
+                Kata sandi {mode !== "login" && "(minimal 8 karakter)"}
               </Label>
-              <Input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 autoComplete={
                   mode === "login" ? "current-password" : "new-password"
                 }
-                minLength={mode === "login" ? 1 : 12}
+                minLength={mode === "login" ? 1 : 8}
                 maxLength={128}
                 required
               />
@@ -130,12 +134,11 @@ export function AuthForm({
           {(mode === "activate" || mode === "reset-password") && (
             <div className="space-y-2">
               <Label htmlFor="confirm">Ulangi kata sandi</Label>
-              <Input
+              <PasswordInput
                 id="confirm"
                 name="confirm"
-                type="password"
                 autoComplete="new-password"
-                minLength={12}
+                minLength={8}
                 maxLength={128}
                 required
               />

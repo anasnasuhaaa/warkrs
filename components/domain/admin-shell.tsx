@@ -46,7 +46,7 @@ function AdminSidebar({ name }: { name: string }) {
   return (
     <Sidebar collapsible="icon" className="border-r">
       <SidebarHeader className="h-18 justify-center border-b px-3 group-data-[collapsible=icon]:px-1.5">
-        <Brand compact />
+        <Brand compact href="/admin" />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup className="pt-5">

@@ -25,7 +25,7 @@ function createAuth() {
       enabled: true,
       disableSignUp: true,
       requireEmailVerification: true,
-      minPasswordLength: 12,
+      minPasswordLength: 8,
       maxPasswordLength: 128,
     },
     user: {
