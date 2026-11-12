@@ -7,6 +7,7 @@ import { Actor } from "@/lib/authorization";
 import { invariant } from "@/lib/errors";
 import { activeMember, type Transaction } from "@/modules/games/lifecycle";
 import { gameDetail } from "@/modules/games/detail";
+import { nimConsentPrefix } from "@/modules/games/terms";
 import { effectiveStatus } from "@/modules/games/status";
 export async function feedAccess(tx: Transaction, actor: Actor, id: string) {
   const [game] = await tx.select().from(games).where(eq(games.id, id));
@@ -141,13 +142,19 @@ export async function packageWinners(
   z.number().int().min(1).max(100).parse(limit);
   return getDb().transaction(
     async (tx) => {
-      await feedAccess(tx, actor, id);
+      const game = await feedAccess(tx, actor, id);
       const [p] = await tx
         .select({ id: packages.id })
         .from(packages)
         .where(and(eq(packages.id, packageId), eq(packages.gameId, id)));
       const r = await tx.execute(
-        sql`SELECT u.full_name AS name,s.sequence,a.awarded_rank AS "awardedRank",a.allocated_at AS "allocatedAt" FROM war_allocations a JOIN users u ON u.id=a.user_id JOIN war_submissions s ON s.id=a.submission_id WHERE a.game_id=${id} AND a.package_id=${packageId} AND s.sequence>${afterSequence} ORDER BY s.sequence LIMIT ${limit + 1}`,
+        sql`SELECT u.full_name AS name,
+          CASE WHEN ${game.termsVersion.startsWith(nimConsentPrefix)} AND m.consented_terms_version=${game.termsVersion} THEN u.nim ELSE NULL END AS nim,
+          s.sequence,a.awarded_rank AS "awardedRank",s.accepted_at AS "acceptedAt"
+          FROM war_allocations a JOIN users u ON u.id=a.user_id
+          JOIN war_submissions s ON s.id=a.submission_id AND s.game_id=a.game_id AND s.user_id=a.user_id
+          JOIN game_participants m ON m.game_id=a.game_id AND m.user_id=a.user_id
+          WHERE a.game_id=${id} AND a.package_id=${packageId} AND s.sequence>${afterSequence} ORDER BY s.sequence LIMIT ${limit + 1}`,
       );
       invariant(p, "NOT_FOUND", "Paket tidak ditemukan.", 404);
       const items = r.rows.slice(0, limit);

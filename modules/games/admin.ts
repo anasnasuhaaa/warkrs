@@ -4,6 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { auditLogs, games, packages, participants, user } from "@/db/schema";
 import { Actor, adminOnly } from "@/lib/authorization";
+import { nimConsentPrefix } from "./terms";
 import { invariant } from "@/lib/errors";
 import { draftInput, type DraftInput } from "@/lib/game-validation";
 export { draftInput, type DraftInput } from "@/lib/game-validation";
@@ -63,7 +64,7 @@ export async function saveDraft(
     const fields = {
       title: value.title,
       termsText: value.termsText,
-      termsVersion: randomUUID(),
+      termsVersion: nimConsentPrefix + randomUUID(),
       startsAt: new Date(value.startsAt),
       endsAt: new Date(value.endsAt),
       updatedAt: sql`clock_timestamp()`,
@@ -168,6 +169,7 @@ export async function publishGame(actor: Actor, id: string) {
     await tx
       .update(games)
       .set({
+        termsVersion: game.termsVersion.startsWith(nimConsentPrefix) ? game.termsVersion : nimConsentPrefix + randomUUID(),
         publishedAt: sql`clock_timestamp()`,
         updatedAt: sql`clock_timestamp()`,
       })

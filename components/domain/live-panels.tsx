@@ -31,13 +31,14 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { api } from "@/lib/api-client";
-import { jakarta } from "@/lib/time";
+import { jakartaPrecise } from "@/lib/time";
 import type { Activity, Snapshot } from "@/hooks/use-game-updates";
 type Winner = {
   name: string;
   sequence: number;
   awardedRank: number;
-  allocatedAt: string;
+  nim: string | null;
+  acceptedAt: string;
 };
 function Winners({ id, p }: { id: string; p: Snapshot["packages"][number] }) {
   const [open, setOpen] = useState(false);
@@ -121,13 +122,13 @@ function Winners({ id, p }: { id: string; p: Snapshot["packages"][number] }) {
       </DialogTrigger>
       <DialogContent
         data-winners-id={p.id}
-        className="max-h-[85dvh] overflow-y-auto sm:max-w-xl"
+        className="max-h-[85dvh] overflow-y-auto sm:max-w-4xl"
       >
         <DialogHeader>
           <DialogTitle>{p.name}</DialogTitle>
           <DialogDescription>
             {p.allocated} dari {p.capacity} kuota teralokasi. Nama hanya
-            terlihat oleh peserta yang bergabung dan admin.
+            terlihat oleh peserta yang bergabung dan admin. NIM disamarkan jika ketentuan lama belum mencakupnya.
           </DialogDescription>
         </DialogHeader>
         <Button
@@ -138,20 +139,24 @@ function Winners({ id, p }: { id: string; p: Snapshot["packages"][number] }) {
         >
           Perbarui daftar
         </Button>
-        <Table>
+        <Table className="min-w-[42rem]">
           <TableHeader>
             <TableRow>
               <TableHead>Urutan</TableHead>
-              <TableHead>Nama lengkap</TableHead>
+              <TableHead>Nama Lengkap</TableHead>
+              <TableHead>NIM</TableHead>
               <TableHead>Pilihan</TableHead>
+              <TableHead>Waktu Diterima (WIB)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
               <TableRow key={r.sequence}>
                 <TableCell>#{r.sequence}</TableCell>
-                <TableCell>{r.name}</TableCell>
+                <TableCell className="max-w-64 whitespace-normal">{r.name}</TableCell>
+                <TableCell>{r.nim ?? "—"}</TableCell>
                 <TableCell>{r.awardedRank}</TableCell>
+                <TableCell className="font-mono text-xs tabular-nums"><time dateTime={r.acceptedAt} title={jakartaPrecise(r.acceptedAt, true)}>{jakartaPrecise(r.acceptedAt)}</time></TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -221,7 +226,7 @@ export function LivePanels({
 }) {
   const [visible, setVisible] = useState(100);
   return (
-    <Tabs defaultValue="main" className="min-w-0 gap-5">
+    <Tabs defaultValue="main" className="min-w-0 gap-3">
       <TabsList className="grid h-auto w-full grid-cols-3 group-data-horizontal/tabs:h-auto rounded-lg border bg-card p-1">
         <TabsTrigger
           className="min-h-11 whitespace-normal px-1 text-xs font-medium data-active:bg-accent data-active:text-primary data-active:shadow-none group-data-[variant=default]/tabs-list:data-active:shadow-none sm:px-3 sm:text-sm"
@@ -328,29 +333,10 @@ export function LivePanels({
               const view = eventPresentation(e);
               const Icon = view.icon;
               return (
-                <li key={e.id} className="flex gap-3 p-4 sm:p-5">
-                  <span
-                    className={`flex size-8 shrink-0 items-center justify-center rounded-full ${view.tone}`}
-                  >
-                    <Icon className="size-4" aria-hidden="true" />
-                  </span>
-                  <article className="min-w-0 space-y-2">
-                    <h3 className="text-sm font-medium">{view.label}</h3>
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      {view.text}
-                    </p>
-                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-relaxed text-muted-foreground">
-                      <time dateTime={e.createdAt} title={e.createdAt}>
-                        {jakarta(e.createdAt)}
-                      </time>
-                      {e.sequence && (
-                        <span className="font-medium tabular-nums">
-                          Urutan #{e.sequence}
-                        </span>
-                      )}
-                      <span className="tabular-nums">Event {e.id}</span>
-                    </p>
-                  </article>
+                <li key={e.id} className="flex flex-wrap items-start gap-x-2 gap-y-1 px-3 py-2 text-xs sm:flex-nowrap sm:items-center">
+                  <Icon className={`mt-0.5 size-4 shrink-0 ${view.tone}`} aria-label={view.label} />
+                  <p className="min-w-0 flex-1 break-words leading-5">{view.text} <span className="whitespace-nowrap text-muted-foreground">{e.sequence ? `#${e.sequence} · ` : ""}E{e.id}</span></p>
+                  <time className="ml-6 whitespace-nowrap font-mono text-[11px] tabular-nums text-muted-foreground sm:ml-auto" dateTime={e.createdAt} title={jakartaPrecise(e.createdAt, true)}>{jakartaPrecise(e.createdAt)}</time>
                 </li>
               );
             })}

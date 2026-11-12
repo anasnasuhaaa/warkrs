@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
-  Clock3,
   LockKeyhole,
   LoaderCircle,
 } from "lucide-react";
@@ -27,7 +26,7 @@ import { StatusBadge } from "./status-badge";
 import { ConnectionStatus } from "./connection-status";
 import { api } from "@/lib/api-client";
 import { jakarta } from "@/lib/time";
-import { consentNotice } from "@/modules/games/terms";
+import { consentNoticeFor } from "@/modules/games/terms";
 import type { GameStatus } from "@/modules/games/status";
 export type RoomGame = {
   id: string;
@@ -66,7 +65,7 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
   );
   const closed = game.status === "Closing" || game.status === "Completed";
   return (
-    <>
+    <div className="mx-auto w-full max-w-4xl space-y-3">
       <Link
         href="/games"
         className="inline-flex items-center gap-2 rounded-sm text-sm text-muted-foreground hover:text-foreground"
@@ -74,25 +73,18 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
         <ArrowLeft className="size-4" aria-hidden="true" />
         Daftar War
       </Link>
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="space-y-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h1 className="min-w-0 flex-1 break-words text-xl font-semibold tracking-tight sm:text-2xl">{game.title}</h1>
           <StatusBadge status={game.status} />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+          <details className="min-w-0 text-xs text-muted-foreground">
+            <summary className="cursor-pointer rounded-sm py-1">Jadwal War</summary>
+            <dl className="space-y-1 py-2"><div><dt className="inline">Mulai: </dt><dd className="inline">{jakarta(game.startsAt)}</dd></div><div><dt className="inline">Selesai: </dt><dd className="inline">{jakarta(game.endsAt)}</dd></div></dl>
+          </details>
           <ConnectionStatus message={connection} />
         </div>
-        <h1 className="page-title">{game.title}</h1>
-        <dl className="grid gap-3 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Clock3 className="size-4" aria-hidden="true" />
-              Mulai
-            </dt>
-            <dd className="mt-1 font-medium">{jakarta(game.startsAt)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-muted-foreground">Selesai</dt>
-            <dd className="mt-1 font-medium">{jakarta(game.endsAt)}</dd>
-          </div>
-        </dl>
       </section>
       {game.status === "Upcoming" && (
         <Card>
@@ -147,7 +139,7 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
                 Privasi dan pengiriman
               </h2>
               <p className="text-sm leading-7 text-muted-foreground">
-                {consentNotice}
+                {consentNoticeFor(game.termsVersion)}
               </p>
             </div>
             <div className="flex items-start gap-3 rounded-lg border p-4">
@@ -163,7 +155,7 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
                 className="cursor-pointer text-sm font-normal leading-7"
               >
                 Saya telah membaca dan menyetujui ketentuan serta pemberitahuan
-                nama lengkap di atas.
+                nama lengkap{game.termsVersion.startsWith("nim-v2:") ? " dan NIM" : ""} di atas.
               </Label>
             </div>
             <Button
@@ -207,14 +199,14 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
       )}
       {game.joinedAt && (
         <>
-          <p className="flex items-start gap-2.5 text-sm text-muted-foreground">
+          <p className={`${game.status === "Live" ? "sr-only" : "flex"} items-start gap-2.5 text-sm text-muted-foreground`}>
             <CheckCircle2
               className="mt-0.5 size-4 shrink-0 text-success"
               aria-hidden="true"
             />
             Anda sudah bergabung dan menyetujui ketentuan War.
           </p>
-          <LivePanels snapshot={snapshot} events={events}>
+          <LivePanels key={game.status === "Live" && !snapshot?.ownSubmission ? "arena" : "result"} snapshot={snapshot} events={events}>
             <Ranking
               id={game.id}
               packages={game.packages}
@@ -244,6 +236,6 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

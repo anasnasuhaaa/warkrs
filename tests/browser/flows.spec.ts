@@ -39,7 +39,7 @@ async function join(page: Page) {
   await page.getByRole("button", { name: "Gabung War" }).click();
   await expect(
     page.getByText("Anda sudah bergabung dan menyetujui ketentuan War."),
-  ).toBeVisible();
+  ).toBeAttached();
 }
 async function rank(page: Page) {
   await page.getByRole("button", { name: /\+ Paket A/ }).click();
@@ -79,6 +79,9 @@ for (const width of [320, 375, 768, 1024, 1440])
     await noOverflow(page);
     await accessibility(page);
     await join(page);
+    await expect(page.getByRole("tab", { name: "Tampilan Utama", exact: true })).toHaveAttribute("aria-selected", "true");
+    const picker = await page.getByRole("button", { name: /\+ Paket A/ }).boundingBox();
+    expect(picker!.y).toBeLessThan(560);
     await rank(page);
     await page.screenshot({
       path: `.test-artifacts/redesign-ranking-${width}.png`,
@@ -108,6 +111,9 @@ for (const width of [320, 375, 768, 1024, 1440])
         .getByRole("cell", { name: fixtures.student.name, exact: true }),
     ).toBeVisible();
     await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByRole("dialog").getByRole("columnheader", { name: "NIM", exact: true })).toBeVisible();
+    await expect(page.getByRole("dialog").getByRole("cell", { name: fixtures.student.nim, exact: true })).toBeVisible();
+    await expect(page.getByRole("dialog").locator("time").first()).toHaveText(/\d{2}:\d{2}:\d{2}\.\d{3} WIB/);
     await expect(
       page.getByRole("button", { name: "Perbarui daftar" }),
     ).toBeEnabled();

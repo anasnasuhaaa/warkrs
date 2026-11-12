@@ -9,8 +9,9 @@ import {
 } from "../modules/activity/queries";
 import { submitRanking } from "../modules/allocation/service";
 import { joinGame } from "../modules/games/lifecycle";
-import { gameFixture } from "./fixtures";
-import { actor } from "./helpers";
+import { saveDraft, getDraft } from "../modules/games/admin";
+import { gameFixture, draftFixture } from "./fixtures";
+import { actor, dbNow } from "./helpers";
 after(closeDb);
 test("two simultaneous clients converge on snapshots and durable events, identities only after join", async () => {
   const f = await gameFixture({ count: 3, capacities: [1, 2], join: false });
@@ -99,4 +100,28 @@ test("uncommitted events never visible to feeds", async () => {
   release();
   await rejected;
   assert.equal((await eventFeed(f.students[0], f.id)).items.length, 0);
+});
+
+test("winners use receipt time, FCFS sequence, authorized NIM consent and null legacy NIM", async () => {
+  const f = await gameFixture({ count: 2, capacities: [2] });
+  const first = await submitRanking(f.students[1], f.id, f.packageIds);
+  const second = await submitRanking(f.students[0], f.id, f.packageIds);
+  await getDb().execute(sql`UPDATE users SET nim=NULL WHERE id=${f.students[0].id}`);
+  const winners = await packageWinners(f.students[0], f.id, f.packageIds[0]);
+  assert.deepEqual(winners.items.map(r => r.sequence), [first.sequence, second.sequence]);
+  assert.equal(new Date(winners.items[0].acceptedAt as string).getTime(), first.acceptedAt.getTime());
+  assert.ok(winners.items[0].nim);
+  assert.equal(winners.items[1].nim, null);
+  const other = await gameFixture();
+  await assert.rejects(packageWinners(f.admin, f.id, other.packageIds[0]), { code: "NOT_FOUND" });
+  const legacy = await draftFixture(1);
+  const now = await dbNow();
+  const saved = await saveDraft(legacy.admin, { ...legacy.input, startsAt: new Date(now.getTime() - 60000).toISOString() });
+  // Fictional prior-release fixture: publish under the original notice/version.
+  await getDb().execute(sql`UPDATE games SET terms_version='legacy-v1',published_at=clock_timestamp() WHERE id=${saved.id}`);
+  const game = await getDraft(legacy.admin, saved.id);
+  await joinGame(legacy.students[0], saved.id, { accepted: true, acceptedTermsVersion: "legacy-v1" });
+  await submitRanking(legacy.students[0], saved.id, game.packages.map(p => p.id));
+  assert.equal((await packageWinners(legacy.students[0], saved.id, game.packages[0].id)).items[0].nim, null);
+  assert.equal((await getDraft(legacy.admin, saved.id)).termsVersion, "legacy-v1");
 });

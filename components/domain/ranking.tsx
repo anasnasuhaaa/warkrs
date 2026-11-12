@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api-client";
-import { jakarta } from "@/lib/time";
+import { jakartaPrecise } from "@/lib/time";
 import type { Result } from "@/modules/allocation/service";
 export type WireResult = Omit<Result, "acceptedAt"> & { acceptedAt: string };
 export function Ranking({
@@ -99,7 +99,7 @@ export function Ranking({
           <p className="text-sm leading-relaxed text-muted-foreground">
             Diterima server{" "}
             <time dateTime={confirmed.acceptedAt}>
-              {jakarta(confirmed.acceptedAt)}
+              {jakartaPrecise(confirmed.acceptedAt, true)}
             </time>
             . Hasil tetap dan tidak dapat diubah.
           </p>
@@ -123,15 +123,14 @@ export function Ranking({
     setSelected(copy);
   }
   return (
-    <Card>
-      <CardHeader className="border-b">
+    <Card className="gap-4 py-4">
+      <CardHeader className="border-b px-4">
         <CardTitle>Urutkan pilihan paket</CardTitle>
         <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          Ketuk paket sesuai urutan pilihan. Server mencoba pilihan berikutnya
-          jika paket penuh.
+          Ketuk seluruh paket sesuai urutan pilihanmu.
         </p>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 px-4">
         {!loaded ? (
           <div className="space-y-3" role="status">
             <p className="text-sm text-muted-foreground">
@@ -147,7 +146,7 @@ export function Ranking({
               return (
                 <Button
                   key={p.id}
-                  className={`h-auto min-h-20 w-full justify-start gap-3 whitespace-normal px-4 py-4 text-left font-normal disabled:grayscale-0 disabled:border-solid ${rank ? "border-primary/35 bg-accent text-accent-foreground" : "bg-card"}`}
+                  className={`h-auto min-h-14 w-full justify-start gap-3 whitespace-normal px-3 py-2.5 text-left font-normal disabled:grayscale-0 disabled:border-solid ${rank ? "border-primary/35 bg-accent text-accent-foreground" : "bg-card"}`}
                   variant="outline"
                   aria-label={
                     rank
@@ -180,85 +179,12 @@ export function Ranking({
             })}
           </div>
         )}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <h3 className="font-medium">Urutan pilihanmu</h3>
-            <span className="text-xs text-muted-foreground" aria-live="polite">
-              {selected.length} dari {packages.length} paket dipilih
-            </span>
-          </div>
-          <Progress
-            value={
-              packages.length ? (selected.length / packages.length) * 100 : 0
-            }
-            aria-label="Kelengkapan urutan paket"
-            className="h-1.5"
-          />
-          {selected.length > 0 ? (
-            <ol className="divide-y rounded-lg border">
-              {selected.map((packageId, i) => (
-                <li
-                  key={packageId}
-                  className="flex flex-wrap items-center gap-3 px-3 py-3"
-                >
-                  <span
-                    className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent text-sm font-semibold text-primary"
-                    aria-label={`Prioritas ${i + 1}`}
-                  >
-                    {i + 1}
-                  </span>
-                  <span className="min-w-0 flex-1 text-sm font-medium">
-                    {packages.find((p) => p.id === packageId)?.name}
-                  </span>
-                  <div className="flex w-full justify-end gap-1 sm:w-auto">
-                    <Button
-                      size="icon"
-                      className="size-9"
-                      variant="ghost"
-                      aria-label={`Naikkan pilihan ${i + 1}`}
-                      disabled={i === 0 || pending}
-                      onClick={() => move(i, -1)}
-                    >
-                      <ArrowUp className="size-4" aria-hidden="true" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      className="size-9"
-                      variant="ghost"
-                      aria-label={`Turunkan pilihan ${i + 1}`}
-                      disabled={i === selected.length - 1 || pending}
-                      onClick={() => move(i, 1)}
-                    >
-                      <ArrowDown className="size-4" aria-hidden="true" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      className="size-9 text-muted-foreground hover:text-destructive"
-                      variant="ghost"
-                      aria-label={`Hapus pilihan ${i + 1}`}
-                      disabled={pending}
-                      onClick={() =>
-                        setSelected(selected.filter((p) => p !== packageId))
-                      }
-                    >
-                      <X className="size-4" aria-hidden="true" />
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="rounded-lg border border-dashed px-4 py-5 text-center text-sm text-muted-foreground">
-              Pilih paket pertama untuk mulai menyusun urutan.
-            </p>
-          )}
-        </div>
         <div className="space-y-4 border-t pt-5">
-          <p className="text-xs leading-6 text-muted-foreground">
+          <details className="text-xs leading-6 text-muted-foreground"><summary className="cursor-pointer">Ketentuan pengiriman</summary><p>
             Satu pengiriman yang diterima bersifat tetap. Urutan resmi mengikuti
             penerimaan database, bukan waktu klik. Server harus menerima
             permintaan sebelum War ditutup.
-          </p>
+          </p></details>
           {message && (
             <Alert role="status">
               <AlertDescription>{message}</AlertDescription>
@@ -328,6 +254,80 @@ export function Ranking({
             {pending ? "Menunggu server…" : "Kirim urutan paket"}
           </Button>
         </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <h3 className="font-medium">Urutan pilihanmu</h3>
+            <span className="text-xs text-muted-foreground" aria-live="polite">
+              {selected.length} dari {packages.length} paket dipilih
+            </span>
+          </div>
+          <Progress
+            value={
+              packages.length ? (selected.length / packages.length) * 100 : 0
+            }
+            aria-label="Kelengkapan urutan paket"
+            className="h-1.5"
+          />
+          {selected.length > 0 ? (
+            <ol className="divide-y rounded-lg border">
+              {selected.map((packageId, i) => (
+                <li
+                  key={packageId}
+                  className="flex flex-wrap items-center gap-3 px-3 py-3"
+                >
+                  <span
+                    className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent text-sm font-semibold text-primary"
+                    aria-label={`Prioritas ${i + 1}`}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 text-sm font-medium">
+                    {packages.find((p) => p.id === packageId)?.name}
+                  </span>
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      size="icon"
+                      className="size-9"
+                      variant="ghost"
+                      aria-label={`Naikkan pilihan ${i + 1}`}
+                      disabled={i === 0 || pending}
+                      onClick={() => move(i, -1)}
+                    >
+                      <ArrowUp className="size-4" aria-hidden="true" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      className="size-9"
+                      variant="ghost"
+                      aria-label={`Turunkan pilihan ${i + 1}`}
+                      disabled={i === selected.length - 1 || pending}
+                      onClick={() => move(i, 1)}
+                    >
+                      <ArrowDown className="size-4" aria-hidden="true" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      className="size-9 text-muted-foreground hover:text-destructive"
+                      variant="ghost"
+                      aria-label={`Hapus pilihan ${i + 1}`}
+                      disabled={pending}
+                      onClick={() =>
+                        setSelected(selected.filter((p) => p !== packageId))
+                      }
+                    >
+                      <X className="size-4" aria-hidden="true" />
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="rounded-lg border border-dashed px-4 py-5 text-center text-sm text-muted-foreground">
+              Pilih paket pertama untuk mulai menyusun urutan.
+            </p>
+          )}
+        </div>
+
       </CardContent>
     </Card>
   );

@@ -117,3 +117,11 @@ field errors through accessible descriptions. Incomplete drafts may be saved;
 publication still requires complete terms, packages, capacity and whitelist.
 Student actions are available through a keyboard-accessible row menu. Sonner
 feedback is emitted by confirmed user actions, never by realtime refreshes.
+
+Winners and activity use shared `Asia/Jakarta` millisecond formatting. Winner
+receipt times come from `war_submissions.accepted_at`, sorted by FCFS sequence.
+New draft saves/publications use an immutable `nim-v2:` terms-version prefix,
+which explicitly discloses NIM visibility. Published older versions are unchanged:
+public winner responses mask NIM unless the recipient consented to that War's
+current `nim-v2:` version. This applies to admin winner views too; authenticated
+admin result exports are a separate administrative capability.
