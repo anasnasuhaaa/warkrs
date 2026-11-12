@@ -111,3 +111,9 @@ both the Better Auth session and active account before linking to the role's
  dashboard. Cookies still come from the existing same-origin auth route; production
 requires the exact HTTPS `APP_BASE_URL`. A global shadcn Sonner toaster persists
 across routes (top-right, 2 seconds).
+
+Admin forms share client-safe Zod contracts, retain server validation, and expose
+field errors through accessible descriptions. Incomplete drafts may be saved;
+publication still requires complete terms, packages, capacity and whitelist.
+Student actions are available through a keyboard-accessible row menu. Sonner
+feedback is emitted by confirmed user actions, never by realtime refreshes.

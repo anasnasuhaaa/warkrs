@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 import Link from "next/link";
 import { LivePanels } from "./live-panels";
 import { useGameUpdates } from "@/hooks/use-game-updates";
@@ -176,8 +177,10 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
                     accepted: true,
                     acceptedTermsVersion: game.termsVersion,
                   });
+                  toast.success("Berhasil bergabung ke War.");
                   await refresh();
                 } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Gagal bergabung.");
                   setMessage(
                     e instanceof Error ? e.message : "Gagal bergabung.",
                   );

@@ -1,3 +1,6 @@
+export class ApiError extends Error {
+  constructor(message: string, public fields: Record<string, string> = {}) { super(message); }
+}
 export async function api<T>(
   url: string,
   data?: unknown,
@@ -17,6 +20,6 @@ export async function api<T>(
   });
   const json = await response.json();
   if (!response.ok)
-    throw new Error(json.error?.message ?? "Permintaan gagal. Coba kembali.");
+    throw new ApiError(json.error?.message ?? "Permintaan gagal. Coba kembali.", json.error?.fields);
   return Object.prototype.hasOwnProperty.call(json, "data") ? json.data : json;
 }

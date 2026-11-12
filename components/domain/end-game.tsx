@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -14,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { endWarInput } from "@/lib/game-validation";
 import { api } from "@/lib/api-client";
 export function EndGame({ id, onEnded }: { id: string; onEnded?: () => void }) {
   const [reason, setReason] = useState("");
@@ -43,9 +45,11 @@ export function EndGame({ id, onEnded }: { id: string; onEnded?: () => void }) {
             value={reason}
             maxLength={500}
             onChange={(e) => setReason(e.target.value)}
+            aria-invalid={Boolean(message)}
+            aria-describedby="end-error"
             required
           />
-          <p role="status" className="text-sm text-destructive">
+          <p id="end-error" role="status" className="text-sm text-destructive">
             {message}
           </p>
         </div>
@@ -55,16 +59,21 @@ export function EndGame({ id, onEnded }: { id: string; onEnded?: () => void }) {
             variant="destructive"
             disabled={pending || reason.trim().length < 10}
             onClick={async () => {
+              const parsed = endWarInput.safeParse({ reason, confirmed: true });
+              if (!parsed.success) { setMessage(parsed.error.issues[0].message); return; }
+              setMessage("");
               setPending(true);
               try {
                 await api(`/api/admin/games/${id}/end`, {
                   reason,
                   confirmed: true,
                 });
+                toast.success("War diakhiri.");
                 setOpen(false);
                 if (onEnded) onEnded();
                 else router.refresh();
               } catch (e) {
+                toast.error(e instanceof Error ? e.message : "Gagal mengakhiri War.");
                 setMessage(
                   e instanceof Error ? e.message : "Gagal mengakhiri.",
                 );

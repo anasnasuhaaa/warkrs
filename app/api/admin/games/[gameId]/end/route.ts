@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { endWarInput } from "@/lib/game-validation";
 import { body, endpoint, sameOrigin } from "@/lib/http";
 import { requireAdmin } from "@/lib/authorization";
 import { endGame } from "@/modules/games/lifecycle";
@@ -9,9 +9,7 @@ export async function POST(
   return endpoint(async () => {
     sameOrigin(request);
     const actor = await requireAdmin(request.headers);
-    const input = z
-      .object({ reason: z.string(), confirmed: z.literal(true) })
-      .parse(await body(request));
+    const input = endWarInput.parse(await body(request));
     return endGame(actor, (await params).gameId, input.reason);
   });
 }

@@ -31,6 +31,7 @@ export function GameDateTimeField({
   onChange,
   disabled = false,
   invalid = false,
+  error,
 }: {
   id: string;
   label: string;
@@ -38,6 +39,7 @@ export function GameDateTimeField({
   onChange: (value: string) => void;
   disabled?: boolean;
   invalid?: boolean;
+  error?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [day, time] = value.split("T");
@@ -64,7 +66,7 @@ export function GameDateTimeField({
                 className="h-11 w-full justify-start px-3 text-left font-normal"
                 disabled={disabled}
                 aria-invalid={invalid}
-                aria-describedby={`${id}-zone`}
+                aria-describedby={`${id}-zone${error ? ` ${id}-error` : ""}`}
               >
                 <CalendarDays
                   className="size-4 shrink-0 text-muted-foreground"
@@ -117,6 +119,8 @@ export function GameDateTimeField({
             onValueChange={(h) => onChange(`${day}T${h}:${minute}`)}
           >
             <SelectTrigger
+              aria-invalid={invalid}
+              aria-describedby={error ? `${id}-error` : undefined}
               aria-label={`Jam ${label.toLowerCase()}`}
               className="h-11! min-w-0 flex-1 bg-card"
             >
@@ -139,6 +143,8 @@ export function GameDateTimeField({
             onValueChange={(m) => onChange(`${day}T${hour}:${m}`)}
           >
             <SelectTrigger
+              aria-invalid={invalid}
+              aria-describedby={error ? `${id}-error` : undefined}
               aria-label={`Menit ${label.toLowerCase()}`}
               className="h-11! min-w-0 flex-1 bg-card"
             >
@@ -154,6 +160,7 @@ export function GameDateTimeField({
           </Select>
         </div>
       </div>
+      {error && <p id={`${id}-error`} role="alert" className="text-sm text-destructive">{error}</p>}
       <input type="hidden" name={id} value={value} />
       <p id={`${id}-zone`} className="text-xs text-muted-foreground">
         WIB · Asia/Jakarta

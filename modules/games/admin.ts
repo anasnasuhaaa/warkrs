@@ -1,27 +1,12 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
-import { z } from "zod";
 import { getDb } from "@/db/client";
 import { auditLogs, games, packages, participants, user } from "@/db/schema";
 import { Actor, adminOnly } from "@/lib/authorization";
 import { invariant } from "@/lib/errors";
-export const draftInput = z.object({
-  title: z.string().trim().min(1).max(150),
-  termsText: z.string().trim().max(10000),
-  startsAt: z.iso.datetime({ offset: true }),
-  endsAt: z.iso.datetime({ offset: true }),
-  packages: z
-    .array(
-      z.object({
-        name: z.string().trim().min(1).max(100),
-        capacity: z.number().int().min(1).max(100000),
-      }),
-    )
-    .max(50),
-  userIds: z.array(z.uuid()).max(5000),
-});
-export type DraftInput = z.infer<typeof draftInput>;
+import { draftInput, type DraftInput } from "@/lib/game-validation";
+export { draftInput, type DraftInput } from "@/lib/game-validation";
 function validateDraft(input: DraftInput) {
   const value = draftInput.parse(input);
   invariant(

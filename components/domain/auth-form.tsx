@@ -78,6 +78,7 @@ export function AuthForm({
                   "/api/auth/request-password-reset",
                   { email: form.get("email") },
                 );
+                toast.info(result.message);
                 setMessage(result.message);
                 setSuccess(true);
               } else {
@@ -93,6 +94,7 @@ export function AuthForm({
                 router.refresh();
               }
             } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Permintaan gagal.");
               setMessage(
                 error instanceof Error ? error.message : "Permintaan gagal.",
               );

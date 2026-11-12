@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LogOut, LoaderCircle } from "lucide-react";
@@ -17,6 +18,7 @@ export function Logout({ sidebar = false }: { sidebar?: boolean }) {
       router.push("/login");
       router.refresh();
     } catch {
+      toast.error("Gagal keluar. Coba kembali.");
       setError("Gagal keluar. Coba kembali.");
       setPending(false);
     }

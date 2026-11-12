@@ -1,4 +1,9 @@
 "use client";
+import { toast } from "sonner";
+import { fieldErrors } from "@/lib/form-errors";
+import { FieldError } from "./field-error";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Mail } from "lucide-react";
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -45,10 +50,9 @@ import {
 import {
   StudentImport,
   TemplateButton,
-  ActivationButton,
 } from "./student-import";
 import { studentInput } from "@/lib/account-validation";
-import { api } from "@/lib/api-client";
+import { api, ApiError } from "@/lib/api-client";
 export type Student = {
   id: string;
   name: string;
@@ -59,11 +63,18 @@ export type Student = {
 function StudentForm({
   student,
   onSaved,
+  controlledOpen,
+  onOpen,
 }: {
+  controlledOpen?: boolean;
+  onOpen?: (open: boolean) => void;
   student?: Student;
   onSaved?: (message: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = onOpen ?? setLocalOpen;
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [fields, setFields] = useState({
@@ -86,10 +97,11 @@ function StudentForm({
             email: student?.email ?? "",
           });
           setMessage("");
+          setErrors({});
         }
       }}
     >
-      <DialogTrigger asChild>
+      {controlledOpen === undefined && <DialogTrigger asChild>
         {student ? (
           <Button
             size="icon"
@@ -104,7 +116,7 @@ function StudentForm({
             Tambah Mahasiswa
           </Button>
         )}
-      </DialogTrigger>
+      </DialogTrigger>}
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
@@ -116,15 +128,16 @@ function StudentForm({
               : "Akun baru belum aktif. Email aktivasi dikirim secara terpisah."}
           </DialogDescription>
         </DialogHeader>
-        <form
+        <form noValidate
           className="space-y-5"
           onSubmit={async (e) => {
             e.preventDefault();
             if (pending) return;
             setMessage("");
+            setErrors({});
             const parsed = studentInput.safeParse(fields);
             if (!parsed.success) {
-              setMessage(parsed.error.issues.map((i) => i.message).join(" "));
+              setErrors(fieldErrors(parsed.error));
               return;
             }
             setPending(true);
@@ -136,10 +149,13 @@ function StudentForm({
                 parsed.data,
                 student ? "PATCH" : "POST",
               );
+              toast.success(result.message);
               onSaved?.(result.message);
               setOpen(false);
               router.refresh();
             } catch (error) {
+              if (error instanceof ApiError) setErrors(error.fields);
+              toast.error(error instanceof Error ? error.message : "Data gagal disimpan.");
               setMessage(
                 error instanceof Error ? error.message : "Data gagal disimpan.",
               );
@@ -158,6 +174,8 @@ function StudentForm({
             <div className="space-y-2" key={key}>
               <Label htmlFor={`${formId}-${key}`}>{label}</Label>
               <Input
+                aria-invalid={Boolean(errors[key])}
+                aria-describedby={errors[key] ? `${formId}-${key}-error` : undefined}
                 id={`${formId}-${key}`}
                 name={key}
                 type={key === "email" ? "email" : "text"}
@@ -172,6 +190,7 @@ function StudentForm({
                   setFields({ ...fields, [key]: e.target.value })
                 }
               />
+              <FieldError id={`${formId}-${key}-error`} message={errors[key]} />
             </div>
           ))}
           {student && fields.email.trim().toLowerCase() !== student.email && (
@@ -213,11 +232,17 @@ function StudentForm({
 function DeleteStudent({
   student,
   onDeleted,
+  controlledOpen,
+  onOpen,
 }: {
   student: Student;
   onDeleted: (message: string) => void;
+  controlledOpen?: boolean;
+  onOpen?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = onOpen ?? setLocalOpen;
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const router = useRouter();
@@ -231,7 +256,7 @@ function DeleteStudent({
         }
       }}
     >
-      <AlertDialogTrigger asChild>
+      {controlledOpen === undefined && <AlertDialogTrigger asChild>
         <Button
           size="icon"
           variant="ghost"
@@ -240,7 +265,7 @@ function DeleteStudent({
         >
           <Trash2 className="size-4" aria-hidden="true" />
         </Button>
-      </AlertDialogTrigger>
+      </AlertDialogTrigger>}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Hapus mahasiswa?</AlertDialogTitle>
@@ -272,9 +297,11 @@ function DeleteStudent({
                   "DELETE",
                 );
                 setOpen(false);
+                toast.success(result.message);
                 onDeleted(result.message);
                 router.refresh();
               } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Mahasiswa gagal dihapus.");
                 setMessage(
                   error instanceof Error
                     ? error.message
@@ -353,11 +380,11 @@ export function StudentsTable({ students }: { students: Student[] }) {
         <Table className="min-w-[52rem]">
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="pl-4 sm:pl-6">Nama</TableHead>
+              <TableHead className="pl-4 sm:pl-6">Nama Lengkap</TableHead>
               <TableHead>NIM</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Status akun</TableHead>
-              <TableHead className="pr-4 sm:pr-6">Tindakan</TableHead>
+              <TableHead>Status Akun</TableHead>
+              <TableHead className="pr-4 sm:pr-6">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -392,15 +419,7 @@ export function StudentsTable({ students }: { students: Student[] }) {
                   </Badge>
                 </TableCell>
                 <TableCell className="pr-4 sm:pr-6">
-                  <div className="flex items-start gap-1">
-                    <StudentForm student={s} onSaved={setMessage} />
-                    <DeleteStudent student={s} onDeleted={setMessage} />
-                  </div>
-                  {!s.active && (
-                    <div className="mt-2">
-                      <ActivationButton userId={s.id} />
-                    </div>
-                  )}
+                  <StudentRowActions student={s} onSaved={setMessage} />
                 </TableCell>
               </TableRow>
             ))}
@@ -431,4 +450,28 @@ export function StudentsTable({ students }: { students: Student[] }) {
       </CardContent>
     </Card>
   );
+}
+
+function StudentRowActions({ student, onSaved }: { student: Student; onSaved: (message: string) => void }) {
+  const [edit, setEdit] = useState(false);
+  const [remove, setRemove] = useState(false);
+  const [pending, setPending] = useState(false);
+  return <>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="size-11" disabled={pending} aria-label={`Aksi ${student.name}`}><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => setEdit(true)}><Pencil aria-hidden="true" />Ubah mahasiswa</DropdownMenuItem>
+        {!student.active && <DropdownMenuItem onSelect={async () => {
+          setPending(true);
+          try { const result = await api<{ message: string }>("/api/admin/students/activation-email", { userId: student.id }); toast.success(result.message); }
+          catch (error) { toast.error(error instanceof Error ? error.message : "Email gagal dikirim."); }
+          finally { setPending(false); }
+        }}><Mail aria-hidden="true" />Kirim aktivasi</DropdownMenuItem>}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onSelect={() => setRemove(true)}><Trash2 aria-hidden="true" />Hapus mahasiswa</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+    <StudentForm student={student} onSaved={onSaved} controlledOpen={edit} onOpen={setEdit} />
+    <DeleteStudent student={student} onDeleted={onSaved} controlledOpen={remove} onOpen={setRemove} />
+  </>;
 }

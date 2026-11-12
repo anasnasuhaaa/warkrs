@@ -692,7 +692,8 @@ test("manual student CRUD and protected deletion remain accessible across screen
   const search = page.getByLabel("Cari nama, NIM, atau email", { exact: true });
   await search.fill(nim);
   await expect(page.getByRole("cell", { name, exact: true })).toBeVisible();
-  await page.getByRole("button", { name: `Ubah ${name}`, exact: true }).click();
+  await page.getByRole("button", { name: `Aksi ${name}`, exact: true }).click();
+  await page.getByRole("menuitem", { name: "Ubah mahasiswa", exact: true }).click();
   const edit = page.getByRole("dialog", {
     name: "Ubah Mahasiswa",
     exact: true,
@@ -707,8 +708,9 @@ test("manual student CRUD and protected deletion remain accessible across screen
     page.getByRole("cell", { name: `${name} Baru`, exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: `Hapus ${name} Baru`, exact: true })
+    .getByRole("button", { name: `Aksi ${name} Baru`, exact: true })
     .click();
+  await page.getByRole("menuitem", { name: "Hapus mahasiswa", exact: true }).click();
   const confirmation = page.getByRole("alertdialog");
   await page.screenshot({
     path: ".test-artifacts/student-delete-320.png",
@@ -723,8 +725,9 @@ test("manual student CRUD and protected deletion remain accessible across screen
     page.getByRole("cell", { name: `${name} Baru`, exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: `Hapus ${name} Baru`, exact: true })
+    .getByRole("button", { name: `Aksi ${name} Baru`, exact: true })
     .click();
+  await page.getByRole("menuitem", { name: "Hapus mahasiswa", exact: true }).click();
   await page
     .getByRole("button", { name: "Ya, Hapus Mahasiswa", exact: true })
     .click();
@@ -734,10 +737,11 @@ test("manual student CRUD and protected deletion remain accessible across screen
   await search.fill(fixtures.student.email);
   await page
     .getByRole("button", {
-      name: `Hapus ${fixtures.student.name}`,
+      name: `Aksi ${fixtures.student.name}`,
       exact: true,
     })
     .click();
+  await page.getByRole("menuitem", { name: "Hapus mahasiswa", exact: true }).click();
   await page
     .getByRole("button", { name: "Ya, Hapus Mahasiswa", exact: true })
     .click();
@@ -788,4 +792,30 @@ test("password reset redirects without signing in or keeping its fragment", asyn
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/games");
   await expect(page).toHaveURL(/\/login$/);
+});
+
+test("admin fields show accessible Zod errors and action menu supports keyboard", async ({ page }) => {
+  await login(page, fixtures.admin);
+  await page.goto("/admin/students");
+  await page.getByRole("button", { name: "Tambah Mahasiswa", exact: true }).click();
+  const form = page.getByRole("dialog", { name: "Tambah Mahasiswa", exact: true });
+  await form.getByRole("button", { name: "Simpan Mahasiswa" }).click();
+  for (const label of ["Nama Lengkap", "NIM", "Email"])
+    await expect(form.getByLabel(label, { exact: true })).toHaveAttribute("aria-invalid", "true");
+  await accessibility(page);
+  await form.getByRole("button", { name: "Batal", exact: true }).click();
+  await page.getByLabel("Cari nama, NIM, atau email", { exact: true }).fill(fixtures.student.email);
+  await page.getByRole("button", { name: `Aksi ${fixtures.student.name}`, exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("menuitem", { name: "Ubah mahasiswa" })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("menuitem", { name: "Hapus mahasiswa" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await page.goto("/admin/games/new");
+  await page.getByRole("button", { name: "Simpan draf" }).click();
+  await expect(page.getByLabel("Judul War")).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByLabel("Tanggal mulai")).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByLabel("Nama paket 1")).toHaveAttribute("aria-invalid", "true");
+  await noOverflow(page);
+  await accessibility(page);
 });

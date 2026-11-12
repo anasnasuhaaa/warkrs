@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import {
   ArrowUp,
@@ -285,6 +286,7 @@ export function Ranking({
                   { packageIds: selected },
                 );
                 setResult(accepted);
+                toast.success("Alokasi paket diterima.");
                 onAccepted?.();
               } catch (error) {
                 try {
@@ -293,14 +295,18 @@ export function Ranking({
                   );
                   if (saved) {
                     setResult(saved);
+                    toast.success("Alokasi paket diterima.");
                     onAccepted?.();
-                  } else
+                  } else {
+                    toast.error(error instanceof Error ? error.message : "Pengiriman belum terkonfirmasi.");
                     setMessage(
                       error instanceof Error
                         ? error.message
                         : "Belum ada konfirmasi. Silakan coba kembali.",
                     );
+                  }
                 } catch {
+                  toast.error("Konfirmasi belum tersedia. Coba lagi.");
                   setMessage(
                     "Konfirmasi belum tersedia. Muat ulang atau coba lagi; hasil yang sudah diterima tetap disimpan.",
                   );

@@ -1,4 +1,5 @@
 import "server-only";
+import { fieldErrors } from "@/lib/form-errors";
 import { ZodError } from "zod";
 import { AppError, invariant } from "@/lib/errors";
 import { readAppUrl } from "@/lib/config";
@@ -46,6 +47,7 @@ export async function endpoint(action: () => Promise<unknown>) {
           error: {
             code: "INVALID_INPUT",
             message: "Periksa kembali isian yang diperlukan.",
+            fields: fieldErrors(error),
           },
         },
         { status: 422 },

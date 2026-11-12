@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, Download, FileSpreadsheet, LoaderCircle } from "lucide-react";
@@ -137,11 +138,14 @@ export function StudentImport() {
                 setResult(
                   await api<ImportResult>("/api/admin/students/import", data),
                 );
+                toast.success("Impor selesai. Periksa ringkasan hasil.");
                 setVisible(50);
                 setFile(null);
                 if (fileInput.current) fileInput.current.value = "";
                 router.refresh();
               } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Email gagal dikirim.");
+                toast.error(e instanceof Error ? e.message : "Impor gagal.");
                 setMessage(
                   e instanceof Error ? e.message : "Impor gagal. Coba kembali.",
                 );
@@ -271,8 +275,10 @@ export function ActivationButton({ userId }: { userId: string }) {
               "/api/admin/students/activation-email",
               { userId },
             );
+            toast.success(result.message);
             setMessage(result.message);
           } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Email gagal dikirim.");
             setMessage(e instanceof Error ? e.message : "Email gagal dikirim.");
           } finally {
             setPending(false);

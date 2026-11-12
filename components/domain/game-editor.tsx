@@ -1,4 +1,8 @@
 "use client";
+import { toast } from "sonner";
+import { draftFormInput, publicationInput } from "@/lib/game-validation";
+import { fieldErrors } from "@/lib/form-errors";
+import { FieldError } from "./field-error";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -24,7 +28,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { api } from "@/lib/api-client";
+import { api, ApiError } from "@/lib/api-client";
 import { jakartaInput, fromJakartaInput } from "@/lib/time";
 import { GameDateTimeField } from "./game-date-time-field";
 type Draft = {
@@ -59,6 +63,9 @@ export function GameEditor({
   const [ids, setIds] = useState<string[]>(draft?.userIds ?? []);
   const [search, setSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(100);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const invalid = (key: string) => ({ "aria-invalid": Boolean(errors[key]), "aria-describedby": errors[key] ? `${key}-error` : undefined });
+  const feedback = (key: string) => <FieldError id={`${key}-error`} message={errors[key]} />;
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [pending, setPending] = useState(false);
@@ -69,24 +76,15 @@ export function GameEditor({
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
-  const scheduleValid = Boolean(start && end && end > start);
-  const packagesValid =
-    ps.length > 0 &&
-    ps.every(
-      (p) => p.name.trim() && p.capacity > 0 && Number.isInteger(p.capacity),
-    ) &&
-    new Set(ps.map((p) => p.name.trim().normalize("NFKC").toLowerCase()))
-      .size === ps.length;
-  const ready = Boolean(
-    title.trim() &&
-    terms.trim() &&
-    scheduleValid &&
-    packagesValid &&
-    ids.length > 0 &&
-    capacity >= ids.length,
-  );
+  function payload() {
+    const convert = (value: string) => {
+      try { return fromJakartaInput(value); } catch { return ""; }
+    };
+    return { title, termsText: terms, startsAt: convert(start), endsAt: convert(end), packages: ps, userIds: ids };
+  }
+  const ready = publicationInput.safeParse(payload()).success;
   return (
-    <form
+    <form noValidate
       className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_18rem]"
       onSubmit={async (e) => {
         e.preventDefault();
@@ -95,27 +93,22 @@ export function GameEditor({
         setMessage("");
         setError(false);
         try {
-          if (!start || !end)
-            throw new Error("Pilih tanggal dan waktu mulai serta selesai.");
-          if (!scheduleValid)
-            throw new Error("Waktu selesai harus setelah waktu mulai.");
-          const payload = {
-            title,
-            termsText: terms,
-            startsAt: fromJakartaInput(start),
-            endsAt: fromJakartaInput(end),
-            packages: ps,
-            userIds: ids,
-          };
+          const parsed = draftFormInput.safeParse(payload());
+          if (!parsed.success) { setErrors(fieldErrors(parsed.error)); return; }
+          const publication = publicationInput.safeParse(parsed.data);
+          setErrors(publication.success ? {} : fieldErrors(publication.error));
           const result = await api<{ id: string }>(
             draft ? `/api/admin/games/${draft.id}` : "/api/admin/games",
-            payload,
+            parsed.data,
             draft ? "PATCH" : "POST",
           );
           setSaved(true);
           setMessage("Draf tersimpan.");
+          toast.success("Draf tersimpan.");
           if (!draft) router.push(`/admin/games/${result.id}`);
         } catch (e) {
+              if (e instanceof ApiError) setErrors(e.fields);
+          toast.error(e instanceof Error ? e.message : "Draf gagal disimpan.");
           setError(true);
           setMessage(e instanceof Error ? e.message : "Draf gagal disimpan.");
         } finally {
@@ -135,6 +128,7 @@ export function GameEditor({
             <div className="field-group">
               <Label htmlFor="title">Judul War</Label>
               <Input
+                {...invalid("title")}
                 id="title"
                 name="title"
                 placeholder="Contoh: War KRS Semester 4"
@@ -147,6 +141,7 @@ export function GameEditor({
                   setSaved(false);
                 }}
               />
+              {feedback("title")}
             </div>
           </CardContent>
         </Card>
@@ -163,7 +158,8 @@ export function GameEditor({
               label="Mulai"
               value={start}
               disabled={pending}
-              invalid={error && !scheduleValid}
+              invalid={Boolean(errors.startsAt)}
+              error={errors.startsAt}
               onChange={(v) => {
                 setStart(v);
                 setSaved(false);
@@ -174,7 +170,8 @@ export function GameEditor({
               label="Selesai"
               value={end}
               disabled={pending}
-              invalid={error && !scheduleValid}
+              invalid={Boolean(errors.endsAt)}
+              error={errors.endsAt}
               onChange={(v) => {
                 setEnd(v);
                 setSaved(false);
@@ -191,6 +188,7 @@ export function GameEditor({
               Ketentuan yang perlu disetujui peserta
             </Label>
             <Textarea
+              {...invalid("termsText")}
               id="terms"
               name="terms"
               value={terms}
@@ -203,6 +201,7 @@ export function GameEditor({
                 setSaved(false);
               }}
             />
+            {feedback("termsText")}
             <p className="section-note">
               Pemberitahuan visibilitas nama lengkap dan urutan penerimaan
               server ditampilkan bersama ketentuan saat bergabung.
@@ -241,6 +240,7 @@ export function GameEditor({
                 <div className="field-group">
                   <Label htmlFor={`package-${i}`}>Nama paket {i + 1}</Label>
                   <Input
+                    {...invalid(`packages.${i}.name`)}
                     id={`package-${i}`}
                     value={p.name}
                     disabled={pending}
@@ -255,10 +255,12 @@ export function GameEditor({
                       setSaved(false);
                     }}
                   />
+                  {feedback(`packages.${i}.name`)}
                 </div>
                 <div className="field-group">
                   <Label htmlFor={`quota-${i}`}>Kuota</Label>
                   <Input
+                    {...invalid(`packages.${i}.capacity`)}
                     id={`quota-${i}`}
                     type="number"
                     inputMode="numeric"
@@ -278,6 +280,7 @@ export function GameEditor({
                       setSaved(false);
                     }}
                   />
+                  {feedback(`packages.${i}.capacity`)}
                 </div>
                 <Button
                   type="button"
@@ -295,6 +298,7 @@ export function GameEditor({
                 </Button>
               </div>
             ))}
+            {feedback("packages")}
             {!ps.length && (
               <p className="section-note">
                 Belum ada paket. Tambahkan paket sebelum menerbitkan War.
@@ -343,6 +347,7 @@ export function GameEditor({
             </div>
             <div className="flex min-h-12 items-center gap-3 rounded-md bg-muted px-3">
               <Checkbox
+                {...invalid("userIds")}
                 id="all"
                 disabled={pending || students.length === 0}
                 checked={
@@ -364,6 +369,7 @@ export function GameEditor({
                 </span>
               </Label>
             </div>
+            {feedback("userIds")}
             <div
               className="relative max-h-88 overflow-y-auto rounded-md border"
               tabIndex={0}
@@ -529,8 +535,10 @@ export function PublishGame({
             setPending(true);
             try {
               await api(`/api/admin/games/${id}/publish`, {});
+              toast.success("War diterbitkan.");
               router.refresh();
             } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Publikasi gagal.");
               setMessage(e instanceof Error ? e.message : "Publikasi gagal.");
             } finally {
               setPending(false);
