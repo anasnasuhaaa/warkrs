@@ -8,7 +8,7 @@ import { reconcileGame } from "./lifecycle";
 import { effectiveStatus } from "./status";
 export async function gameDetail(actor: Actor, id: string) {
   const [game] = await getDb().select().from(games).where(eq(games.id, id));
-  invariant(game, "NOT_FOUND", "Game tidak ditemukan.", 404);
+  invariant(game, "NOT_FOUND", "War tidak ditemukan.", 404);
   const [member] = await getDb()
     .select()
     .from(participants)
@@ -16,7 +16,7 @@ export async function gameDetail(actor: Actor, id: string) {
   invariant(
     actor.role === "ADMIN" || (member && game.publishedAt),
     "FORBIDDEN",
-    "Akses game tidak tersedia.",
+    "Akses War tidak tersedia.",
     403,
   );
   await reconcileGame(id);

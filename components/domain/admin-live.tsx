@@ -43,17 +43,17 @@ export function AdminLive({ initial }: { initial: RoomGame }) {
       </div>
       <LivePanels snapshot={snapshot} events={events}>
         <div className="rounded-lg border bg-card p-5">
-          <h3 className="text-sm font-medium">Pemantauan game</h3>
+          <h3 className="text-sm font-medium">Pemantauan War</h3>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             Lihat kuota, penerima paket, dan urutan pengiriman pada tab di atas.
-            Konfigurasi game yang diterbitkan tetap terkunci.
+            Konfigurasi War yang diterbitkan tetap terkunci.
           </p>
         </div>
       </LivePanels>
       {game.status === "Live" && (
         <div className="flex flex-col items-start justify-between gap-4 rounded-lg border bg-card p-5 sm:flex-row sm:items-center">
           <div>
-            <h3 className="text-sm font-medium">Penghentian game</h3>
+            <h3 className="text-sm font-medium">Penghentian War</h3>
             <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">
               Akhiri lebih awal hanya jika diperlukan. Pengiriman yang telah
               diterima tetap disimpan.

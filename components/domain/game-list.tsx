@@ -30,10 +30,10 @@ export function GameList({
 }) {
   if (!games.length)
     return (
-      <EmptyState title="Belum ada game">
+      <EmptyState title="Belum ada War">
         {admin
-          ? "Buat game untuk mulai menyiapkan jadwal, paket, dan peserta."
-          : "Game yang ditetapkan admin untukmu akan muncul di sini."}
+          ? "Buat War untuk mulai menyiapkan jadwal, paket, dan peserta."
+          : "War yang ditetapkan admin untukmu akan muncul di sini."}
       </EmptyState>
     );
   return (
@@ -43,7 +43,7 @@ export function GameList({
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="pl-6">Game</TableHead>
+                <TableHead className="pl-6">War</TableHead>
                 <TableHead>Jadwal (WIB)</TableHead>
                 <TableHead className="text-right">Paket</TableHead>
                 <TableHead className="text-right">Peserta</TableHead>
@@ -158,7 +158,7 @@ export function GameList({
                 asChild
               >
                 <Link href={admin ? `/admin/games/${g.id}` : `/games/${g.id}`}>
-                  Buka game
+                  Buka War
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </Link>
               </Button>

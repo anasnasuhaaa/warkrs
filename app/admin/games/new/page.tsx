@@ -12,10 +12,10 @@ export default async function Page() {
         className="inline-flex items-center gap-2 rounded-sm text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
-        Daftar game
+        Daftar War
       </Link>
       <PageHeader
-        title="Buat game"
+        title="Buat War"
         description="Siapkan jadwal, paket, dan daftar peserta. Simpan sebagai draf sebelum diterbitkan."
       />
       <GameEditor students={await listStudents(await pageActor(true))} />

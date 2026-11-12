@@ -7,8 +7,8 @@ export default async function Page() {
   return (
     <>
       <PageHeader
-        title="Game tersedia"
-        description="Game yang ditetapkan untukmu. Buka game untuk bergabung atau melihat hasil."
+        title="Daftar War"
+        description="War yang ditetapkan untukmu. Buka War untuk bergabung atau melihat hasil."
       />
       <GameList games={games} />
     </>

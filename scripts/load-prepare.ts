@@ -20,6 +20,7 @@ async function main() {
   const students = Array.from({ length: count }, (_, i) => ({
     id: randomUUID(),
     name: `Peserta Fiksi Beban ${i + 1}`,
+    nim: `L${randomUUID().replaceAll("-", "").toUpperCase()}`,
     email: `${randomUUID()}@example.invalid`,
     role: "STUDENT",
     emailVerified: true,

@@ -13,6 +13,7 @@ import {
 import { requireActor, adminOnly } from "../lib/authorization";
 import { getAuth } from "../lib/auth";
 import { actor } from "./helpers";
+import { excelFixture } from "./excel-fixtures";
 const password = "Fictional-only-password-2026!";
 after(closeDb);
 test("unknown users cannot self-register and unauthenticated access fails", async () => {
@@ -38,28 +39,42 @@ test("unknown users cannot self-register and unauthenticated access fails", asyn
 test("admin import normalizes and preserves existing accounts; invalid rows and duplicates reported", async () => {
   const admin = await actor("ADMIN");
   const id = crypto.randomUUID();
-  const csv = `name,email\nFiksi,${id.toUpperCase()}@EXAMPLE.INVALID\nUbah,${id}@example.invalid\nTidak Valid,bukan-email`;
-  const rows = await importStudents(admin, csv);
+  const nim = `A${id.replaceAll("-", "")}`;
+  const workbook = await excelFixture([
+    [1, "Fiksi", nim, `  ${id.toUpperCase()}@EXAMPLE.INVALID  `],
+    [2, "Ubah", nim, `${id}@example.invalid`],
+    [3, "Tidak Valid", `${nim}X`, "bukan-email"],
+  ]);
+  const { rows } = await importStudents(admin, workbook, "mahasiswa.xlsx");
   assert.deepEqual(
     rows.map((r) => r.status),
     ["inserted", "duplicate", "invalid"],
   );
-  const again = await importStudents(admin, csv);
+  const { rows: again } = await importStudents(
+    admin,
+    workbook,
+    "mahasiswa.xlsx",
+  );
   assert.equal(again[0].status, "existing");
   const [saved] = await getDb()
     .select()
     .from(user)
     .where(eq(user.email, `${id}@example.invalid`));
   assert.equal(saved.name, "Fiksi");
-  const audits=await getDb().execute(sql`SELECT metadata FROM admin_audit_logs WHERE admin_user_id=${admin.id} AND action='STUDENTS_IMPORTED'`);
-  assert.equal(audits.rows.length,2);
+  const audits = await getDb().execute(
+    sql`SELECT metadata FROM admin_audit_logs WHERE admin_user_id=${admin.id} AND action='STUDENTS_IMPORTED'`,
+  );
+  assert.equal(audits.rows.length, 2);
   assert.ok(!JSON.stringify(audits.rows).includes("example.invalid"));
   assert.throws(() => adminOnly({ id: "x", name: "x", role: "STUDENT" }), {
     code: "FORBIDDEN",
   });
-  await assert.rejects(importStudents(await actor(), csv), {
-    code: "FORBIDDEN",
-  });
+  await assert.rejects(
+    importStudents(await actor(), workbook, "mahasiswa.xlsx"),
+    {
+      code: "FORBIDDEN",
+    },
+  );
 });
 test("activation is hashed, single use even concurrently, and allows library login", async () => {
   const student = await actor("STUDENT", false);

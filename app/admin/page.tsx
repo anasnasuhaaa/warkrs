@@ -18,12 +18,12 @@ export default async function Admin() {
     <>
       <PageHeader
         title="Dashboard"
-        description="Ringkasan akun dan jadwal game angkatan."
+        description="Ringkasan akun dan jadwal War angkatan."
         action={
           <Button asChild>
             <Link href="/admin/games/new">
               <Plus className="size-4" aria-hidden="true" />
-              Buat game
+              Buat War
             </Link>
           </Button>
         }
@@ -36,9 +36,9 @@ export default async function Admin() {
           detail={`${students.length - active} akun belum aktif`}
         />
         <StatCard
-          label="Total game"
+          label="Total War"
           value={games.length}
-          detail={`${games.filter((g) => g.status === "Upcoming").length} game akan datang`}
+          detail={`${games.filter((g) => g.status === "Upcoming").length} War akan datang`}
         />
         <StatCard
           label="Sedang berlangsung"
@@ -47,10 +47,10 @@ export default async function Admin() {
       </div>
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-base font-semibold">Jadwal game</h2>
+          <h2 className="text-base font-semibold">Jadwal War</h2>
           <Button variant="ghost" size="sm" asChild>
             <Link href="/admin/games">
-              Semua game
+              Semua War
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           </Button>

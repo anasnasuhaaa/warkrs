@@ -20,6 +20,7 @@ export const user = pgTable(
   {
     id: text("id").primaryKey(),
     name: text("full_name").notNull(),
+    nim: text("nim"),
     email: text("email_normalized").notNull().unique(),
     emailVerified: boolean("email_verified").default(false).notNull(),
     image: text("image"),
@@ -30,6 +31,13 @@ export const user = pgTable(
   (t) => [
     check("user_role", sql`${t.role} in ('ADMIN','STUDENT')`),
     check("email_normalized", sql`${t.email} = lower(trim(${t.email}))`),
+    uniqueIndex("users_student_nim_unique")
+      .on(t.nim)
+      .where(sql`${t.role} = 'STUDENT'`),
+    check(
+      "student_nim_format",
+      sql`${t.nim} IS NULL OR (${t.nim} = upper(trim(${t.nim})) AND length(${t.nim}) BETWEEN 1 AND 50 AND ${t.nim} ~ '^[A-Z0-9]+([.-][A-Z0-9]+)*$')`,
+    ),
   ],
 );
 export const session = pgTable(

@@ -109,7 +109,7 @@ export async function submitRanking(
         new Set(ids).size === all.length &&
         ids.every((id) => all.some((p) => p.id === id)),
       "INVALID_RANKING",
-      "Urutkan seluruh paket game ini tepat satu kali.",
+      "Urutkan seluruh paket War ini tepat satu kali.",
     );
     const [counter] = await tx
       .update(games)

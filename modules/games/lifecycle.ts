@@ -13,7 +13,7 @@ export type Transaction = Parameters<
 export async function lockGame(tx: Transaction, id: string) {
   await tx.execute(sql`SELECT id FROM games WHERE id=${id} FOR UPDATE`);
   const [game] = await tx.select().from(games).where(eq(games.id, id));
-  invariant(game, "NOT_FOUND", "Game tidak ditemukan.", 404);
+  invariant(game, "NOT_FOUND", "War tidak ditemukan.", 404);
   const result = await tx.execute(sql`SELECT clock_timestamp() AS now`);
   return { game, now: new Date(result.rows[0].now as string) };
 }
@@ -45,7 +45,7 @@ export async function joinGame(
   return getDb().transaction(async (tx) => {
     const { game, now } = await lockGame(tx, id);
     const member = await activeMember(tx, actor, id);
-    invariant(game.publishedAt, "FORBIDDEN", "Game belum diterbitkan.", 403);
+    invariant(game.publishedAt, "FORBIDDEN", "War belum diterbitkan.", 403);
     invariant(
       value.acceptedTermsVersion === game.termsVersion,
       "TERMS_CHANGED",
@@ -57,7 +57,7 @@ export async function joinGame(
     invariant(
       status === "Upcoming" || status === "Live",
       "GAME_CLOSED",
-      "Game sudah ditutup.",
+      "War sudah ditutup.",
       410,
     );
     const [joined] = await tx
@@ -154,7 +154,7 @@ export async function endGame(actor: Actor, id: string, reasonInput: string) {
     invariant(
       effectiveStatus(game, now) === "Live",
       "GAME_NOT_LIVE",
-      "Game hanya dapat dihentikan saat berlangsung.",
+      "War hanya dapat dihentikan saat berlangsung.",
       409,
     );
     await finalize(tx, game, now, actor, reason);

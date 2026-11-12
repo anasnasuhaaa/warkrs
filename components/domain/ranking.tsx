@@ -256,7 +256,7 @@ export function Ranking({
           <p className="text-xs leading-6 text-muted-foreground">
             Satu pengiriman yang diterima bersifat tetap. Urutan resmi mengikuti
             penerimaan database, bukan waktu klik. Server harus menerima
-            permintaan sebelum game ditutup.
+            permintaan sebelum War ditutup.
           </p>
           {message && (
             <Alert role="status">

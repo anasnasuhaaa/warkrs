@@ -36,7 +36,13 @@ type Draft = {
   packages: { name: string; capacity: number }[];
   userIds: string[];
 };
-type Student = { id: string; name: string; email: string; active: boolean };
+type Student = {
+  id: string;
+  name: string;
+  nim: string | null;
+  email: string;
+  active: boolean;
+};
 export function GameEditor({
   draft,
   students,
@@ -59,7 +65,9 @@ export function GameEditor({
   const [saved, setSaved] = useState(Boolean(draft));
   const capacity = ps.reduce((n, p) => n + (Number(p.capacity) || 0), 0);
   const visible = students.filter((s) =>
-    `${s.name} ${s.email}`.toLowerCase().includes(search.toLowerCase()),
+    `${s.name} ${s.nim ?? ""} ${s.email}`
+      .toLowerCase()
+      .includes(search.toLowerCase()),
   );
   const scheduleValid = Boolean(start && end && end > start);
   const packagesValid =
@@ -118,14 +126,14 @@ export function GameEditor({
       <div className="min-w-0 space-y-6">
         <Card>
           <CardHeader className="border-b">
-            <CardTitle>Informasi game</CardTitle>
+            <CardTitle>Informasi War</CardTitle>
             <CardDescription>
               Gunakan judul yang membedakan simulasi dan war KRS.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="field-group">
-              <Label htmlFor="title">Judul game</Label>
+              <Label htmlFor="title">Judul War</Label>
               <Input
                 id="title"
                 name="title"
@@ -176,7 +184,7 @@ export function GameEditor({
         </Card>
         <Card>
           <CardHeader className="border-b">
-            <CardTitle>Ketentuan game</CardTitle>
+            <CardTitle>Ketentuan War</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <Label htmlFor="terms">
@@ -289,7 +297,7 @@ export function GameEditor({
             ))}
             {!ps.length && (
               <p className="section-note">
-                Belum ada paket. Tambahkan paket sebelum menerbitkan game.
+                Belum ada paket. Tambahkan paket sebelum menerbitkan War.
               </p>
             )}
             <div className="flex items-center justify-between border-t pt-4 text-sm">
@@ -413,7 +421,7 @@ export function GameEditor({
       <aside className="space-y-4 xl:sticky xl:top-24">
         <Card>
           <CardHeader className="border-b">
-            <CardTitle>Ringkasan game</CardTitle>
+            <CardTitle>Ringkasan War</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
             <dl className="space-y-3 text-sm">
@@ -529,7 +537,7 @@ export function PublishGame({
             }
           }}
         >
-          {pending ? "Menerbitkan…" : "Terbitkan game"}
+          {pending ? "Menerbitkan…" : "Publikasikan War"}
         </Button>
         {disabled && (
           <p className="text-xs leading-relaxed text-muted-foreground">

@@ -1,14 +1,22 @@
+import { cn } from "cn";
 export function PageHeader({
   title,
   description,
   action,
+  className,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div
+      className={cn(
+        "flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
+        className,
+      )}
+    >
       <div className="min-w-0 space-y-2">
         <h1 className="page-title">{title}</h1>
         {description && (

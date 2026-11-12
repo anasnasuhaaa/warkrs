@@ -29,7 +29,7 @@ export default async function Page({
         className="inline-flex items-center gap-2 rounded-sm text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
-        Daftar game
+        Daftar War
       </Link>
       <PageHeader
         title={game.title}
@@ -56,7 +56,7 @@ export default async function Page({
               aria-hidden="true"
             />
             <p>
-              Game sudah diterbitkan. Jadwal, ketentuan, paket, kuota, dan
+              War sudah diterbitkan. Jadwal, ketentuan, paket, kuota, dan
               daftar peserta terkunci.
             </p>
           </div>
@@ -89,7 +89,7 @@ export default async function Page({
           />
           <Card>
             <CardHeader className="border-b">
-              <CardTitle>Ketentuan game</CardTitle>
+              <CardTitle>Ketentuan War</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">

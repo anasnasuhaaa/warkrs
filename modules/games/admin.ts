@@ -54,11 +54,11 @@ export async function saveDraft(
     if (gameId) {
       await tx.execute(sql`SELECT id FROM games WHERE id=${id} FOR UPDATE`);
       const [game] = await tx.select().from(games).where(eq(games.id, id));
-      invariant(game, "NOT_FOUND", "Game tidak ditemukan.", 404);
+      invariant(game, "NOT_FOUND", "War tidak ditemukan.", 404);
       invariant(
         !game.publishedAt,
         "CONFIGURATION_FROZEN",
-        "Game terbit tidak dapat diubah.",
+        "War terbit tidak dapat diubah.",
         409,
       );
     }
@@ -124,7 +124,7 @@ export async function saveDraft(
 export async function getDraft(actor: Actor, id: string) {
   adminOnly(actor);
   const [game] = await getDb().select().from(games).where(eq(games.id, id));
-  invariant(game, "NOT_FOUND", "Game tidak ditemukan.", 404);
+  invariant(game, "NOT_FOUND", "War tidak ditemukan.", 404);
   const gamePackages = await getDb()
     .select()
     .from(packages)
@@ -146,11 +146,11 @@ export async function publishGame(actor: Actor, id: string) {
   return getDb().transaction(async (tx) => {
     await tx.execute(sql`SELECT id FROM games WHERE id=${id} FOR UPDATE`);
     const [game] = await tx.select().from(games).where(eq(games.id, id));
-    invariant(game, "NOT_FOUND", "Game tidak ditemukan.", 404);
+    invariant(game, "NOT_FOUND", "War tidak ditemukan.", 404);
     invariant(
       !game.publishedAt,
       "CONFIGURATION_FROZEN",
-      "Game sudah diterbitkan.",
+      "War sudah diterbitkan.",
       409,
     );
     const result = await tx.execute(sql`SELECT clock_timestamp() AS now`);
@@ -168,7 +168,7 @@ export async function publishGame(actor: Actor, id: string) {
     invariant(
       game.endsAt > game.startsAt && game.endsAt > now,
       "INVALID_DATES",
-      "Jadwal game tidak valid atau sudah berakhir.",
+      "Jadwal War tidak valid atau sudah berakhir.",
     );
     invariant(
       ps.length > 0 && members.length > 0,

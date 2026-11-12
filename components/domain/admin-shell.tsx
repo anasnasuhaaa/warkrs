@@ -38,7 +38,7 @@ import { Logout } from "./logout";
 const navigation = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/students", label: "Mahasiswa", icon: UsersRound },
-  { href: "/admin/games", label: "Game", icon: CalendarDays },
+  { href: "/admin/games", label: "War", icon: CalendarDays },
 ];
 function AdminSidebar({ name }: { name: string }) {
   const pathname = usePathname();
@@ -119,13 +119,13 @@ function AdminBreadcrumbs() {
   const section = path.startsWith("/admin/students")
     ? "Mahasiswa"
     : path.startsWith("/admin/games")
-      ? "Game"
+      ? "War"
       : "Dashboard";
   const detail =
     path === "/admin/games/new"
-      ? "Buat game"
+      ? "Buat War"
       : /^\/admin\/games\/.+/.test(path)
-        ? "Detail game"
+        ? "Detail War"
         : null;
   return (
     <Breadcrumb aria-label="Lokasi halaman">
@@ -139,7 +139,7 @@ function AdminBreadcrumbs() {
         <BreadcrumbItem>
           {detail ? (
             <BreadcrumbLink asChild>
-              <Link href="/admin/games">Game</Link>
+              <Link href="/admin/games">War</Link>
             </BreadcrumbLink>
           ) : (
             <BreadcrumbPage>{section}</BreadcrumbPage>

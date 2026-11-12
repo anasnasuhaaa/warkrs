@@ -1,13 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Mail, Search, CheckCircle2, LoaderCircle } from "lucide-react";
+import { Upload, Download, FileSpreadsheet, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogTrigger,
@@ -26,163 +24,230 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { api } from "@/lib/api-client";
-type Row = { row: number; name: string; email: string; status: string };
+import type { ImportRow } from "@/modules/accounts/excel";
+type ImportResult = {
+  rows: ImportRow[];
+  summary: {
+    total: number;
+    inserted: number;
+    existing: number;
+    duplicate: number;
+    invalid: number;
+  };
+};
+export function TemplateButton() {
+  return (
+    <Button variant="outline" asChild>
+      <a href="/api/admin/students/template" download="template-mahasiswa.xlsx">
+        <Download className="size-4" aria-hidden="true" />
+        Unduh Template
+      </a>
+    </Button>
+  );
+}
 export function StudentImport() {
-  const [csv, setCsv] = useState("");
-  const [rows, setRows] = useState<Row[]>([]);
-  const [previewed, setPreviewed] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
-  const [error, setError] = useState(false);
   const [visible, setVisible] = useState(50);
+  const fileInput = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  async function run(preview: boolean) {
-    setPending(true);
-    setMessage("");
-    setError(false);
-    try {
-      const result = await api<Row[]>("/api/admin/students/import", {
-        csv,
-        preview,
-      });
-      setRows(result);
-      setPreviewed(preview);
-      setVisible(50);
-      if (!preview) {
-        setMessage(
-          "Impor selesai. Akun lama dipertahankan. Kirim aktivasi secara terpisah.",
-        );
-        router.refresh();
-      }
-    } catch (e) {
-      setError(true);
-      setMessage(e instanceof Error ? e.message : "Impor gagal.");
-    } finally {
-      setPending(false);
-    }
-  }
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button>
+        <Button variant="outline">
           <Upload className="size-4" aria-hidden="true" />
-          Impor mahasiswa
+          Impor Excel
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent
+        className="max-h-[90dvh] overflow-y-auto sm:max-w-4xl"
+        onInteractOutside={(e) => {
+          if (pending) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (pending) e.preventDefault();
+        }}
+      >
         <DialogHeader>
-          <DialogTitle>Impor mahasiswa</DialogTitle>
+          <DialogTitle>Impor Excel</DialogTitle>
           <DialogDescription>
-            Tempel CSV dengan kolom name,email. Maksimal 1.000 baris. Akun yang
-            sudah ada tidak ditimpa.
+            Unggah .xlsx dengan kolom no, nama, nim, email. Maksimal 1.000
+            mahasiswa dan 2 MB. Isi NIM sebagai teks.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="field-group">
-            <Label htmlFor="csv">CSV mahasiswa</Label>
-            <Textarea
-              id="csv"
-              className="min-h-40 font-mono text-sm"
-              value={csv}
+        <div className="space-y-5">
+          <TemplateButton />
+          <div className="space-y-3 rounded-lg border border-dashed bg-muted/30 p-4">
+            <Label htmlFor="student-excel">Berkas Excel mahasiswa</Label>
+            <Input
+              ref={fileInput}
+              id="student-excel"
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="hidden"
               disabled={pending}
               onChange={(e) => {
-                setCsv(e.target.value);
-                setPreviewed(false);
+                setResult(null);
+                setMessage("");
+                const selected = e.target.files?.[0] ?? null;
+                if (
+                  selected &&
+                  (!/\.xlsx$/i.test(selected.name) ||
+                    selected.size > 2 * 1024 * 1024)
+                ) {
+                  setFile(null);
+                  setMessage("Pilih berkas .xlsx berukuran maksimal 2 MB.");
+                  return;
+                }
+                setFile(selected);
               }}
-              placeholder={"name,email\nMahasiswa Contoh,contoh@example.org"}
-              rows={6}
-              maxLength={200000}
             />
-          </div>
-          <div className="flex flex-wrap gap-2">
             <Button
+              type="button"
               variant="outline"
-              disabled={pending || !csv}
-              onClick={() => run(true)}
+              className="w-full sm:w-auto"
+              disabled={pending}
+              onClick={() => fileInput.current?.click()}
             >
-              Pratinjau
+              <Upload className="size-4" aria-hidden="true" />
+              {file ? "Ganti Berkas" : "Pilih Berkas .xlsx"}
             </Button>
-            <Button disabled={pending || !previewed} onClick={() => run(false)}>
-              {pending && (
-                <LoaderCircle
-                  className="size-4 animate-spin"
+            {file && (
+              <p className="flex items-start gap-2 text-sm" aria-live="polite">
+                <FileSpreadsheet
+                  className="mt-0.5 size-4 shrink-0 text-primary"
                   aria-hidden="true"
                 />
-              )}
-              {pending ? "Memproses…" : "Impor baris valid"}
-            </Button>
+                <span className="break-all">{file.name}</span>
+              </p>
+            )}
           </div>
+          <Button
+            disabled={!file || pending}
+            onClick={async () => {
+              if (!file) return;
+              setPending(true);
+              setMessage("");
+              setResult(null);
+              try {
+                const data = new FormData();
+                data.append("file", file);
+                setResult(
+                  await api<ImportResult>("/api/admin/students/import", data),
+                );
+                setVisible(50);
+                setFile(null);
+                if (fileInput.current) fileInput.current.value = "";
+                router.refresh();
+              } catch (e) {
+                setMessage(
+                  e instanceof Error ? e.message : "Impor gagal. Coba kembali.",
+                );
+              } finally {
+                setPending(false);
+              }
+            }}
+          >
+            {pending && (
+              <LoaderCircle
+                className="size-4 animate-spin"
+                aria-hidden="true"
+              />
+            )}
+            {pending ? "Mengimpor…" : "Impor Mahasiswa"}
+          </Button>
+          {pending && (
+            <p role="status" className="text-sm text-muted-foreground">
+              Memvalidasi dan menyimpan data mahasiswa…
+            </p>
+          )}
           {message && (
-            <Alert variant={error ? "destructive" : "default"} role="status">
+            <Alert variant="destructive" role="alert">
               <AlertDescription>{message}</AlertDescription>
             </Alert>
           )}
-          {rows.length > 0 && (
-            <>
-              <p className="text-sm text-muted-foreground">
-                {rows.length} baris ·{" "}
-                {
-                  rows.filter(
-                    (r) => r.status === "valid" || r.status === "inserted",
-                  ).length
-                }{" "}
-                {previewed ? "baris valid" : "ditambahkan"}
-              </p>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead>Baris</TableHead>
-                      <TableHead>Mahasiswa</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.slice(0, visible).map((r) => (
-                      <TableRow key={r.row}>
-                        <TableCell className="tabular-nums">{r.row}</TableCell>
-                        <TableCell className="min-w-48 whitespace-normal">
-                          <p className="font-medium">{r.name}</p>
-                          <p className="mt-1 break-all text-xs text-muted-foreground">
-                            {r.email}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={
-                              r.status === "invalid"
-                                ? "bg-destructive/5 text-destructive"
-                                : r.status === "inserted"
-                                  ? "bg-success-subtle text-success"
-                                  : ""
-                            }
-                          >
-                            {
-                              {
-                                valid: "Valid",
-                                invalid: "Tidak valid",
-                                duplicate: "Duplikat CSV",
-                                existing: "Sudah ada",
-                                inserted: "Ditambahkan",
-                              }[r.status]
-                            }
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+          {result && (
+            <div className="space-y-4">
+              <div
+                role="status"
+                className="rounded-lg border bg-muted/30 p-4 text-sm leading-7"
+              >
+                <p className="font-medium">
+                  {result.summary.total} baris diproses
+                </p>
+                <p>
+                  {result.summary.inserted} ditambahkan ·{" "}
+                  {result.summary.existing} sudah terdaftar ·{" "}
+                  {result.summary.duplicate} duplikat berkas ·{" "}
+                  {result.summary.invalid} tidak valid
+                </p>
               </div>
-              {rows.length > visible && (
+              <p className="text-sm text-muted-foreground">
+                Akun baru belum aktif. Kirim email aktivasi melalui daftar
+                mahasiswa.
+              </p>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Baris</TableHead>
+                    <TableHead>Mahasiswa</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Keterangan</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {result.rows.slice(0, visible).map((r) => (
+                    <TableRow key={r.row}>
+                      <TableCell>{r.row}</TableCell>
+                      <TableCell className="min-w-48 whitespace-normal">
+                        <p className="font-medium">{r.name || "—"}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {r.nim || "NIM kosong"}
+                        </p>
+                        <p className="mt-1 break-all text-xs text-muted-foreground">
+                          {r.email || "Email kosong"}
+                        </p>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={
+                            r.status === "inserted"
+                              ? "bg-success-subtle text-success"
+                              : r.status === "invalid"
+                                ? "bg-destructive/10 text-destructive"
+                                : "bg-warning-subtle text-warning"
+                          }
+                        >
+                          {
+                            {
+                              valid: "Valid",
+                              inserted: "Ditambahkan",
+                              invalid: "Tidak valid",
+                              duplicate: "Duplikat",
+                              existing: "Sudah terdaftar",
+                            }[r.status]
+                          }
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="min-w-56 whitespace-normal text-sm leading-relaxed">
+                        {r.reason}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {result.rows.length > visible && (
                 <Button
                   variant="outline"
                   onClick={() => setVisible((n) => n + 50)}
                 >
-                  Tampilkan baris berikutnya
+                  Tampilkan berikutnya
                 </Button>
               )}
-            </>
+            </div>
           )}
         </div>
       </DialogContent>
@@ -190,19 +255,17 @@ export function StudentImport() {
   );
 }
 export function ActivationButton({ userId }: { userId: string }) {
-  const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState(false);
+  const [message, setMessage] = useState("");
   return (
     <div className="space-y-2">
       <Button
-        variant="outline"
         size="sm"
+        variant="outline"
         disabled={pending}
         onClick={async () => {
           setPending(true);
           setMessage("");
-          setError(false);
           try {
             const result = await api<{ message: string }>(
               "/api/admin/students/activation-email",
@@ -210,141 +273,25 @@ export function ActivationButton({ userId }: { userId: string }) {
             );
             setMessage(result.message);
           } catch (e) {
-            setError(true);
-            setMessage(e instanceof Error ? e.message : "Gagal mengirim.");
+            setMessage(e instanceof Error ? e.message : "Email gagal dikirim.");
           } finally {
             setPending(false);
           }
         }}
       >
-        {pending ? (
+        {pending && (
           <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
-        ) : (
-          <Mail className="size-3.5" aria-hidden="true" />
         )}
-        Kirim aktivasi
+        {pending ? "Mengirim…" : "Kirim aktivasi"}
       </Button>
       {message && (
         <p
           role="status"
-          className={`max-w-56 whitespace-normal text-xs leading-relaxed ${error ? "text-destructive" : "text-success"}`}
+          className="max-w-64 whitespace-normal text-xs leading-relaxed text-muted-foreground"
         >
           {message}
         </p>
       )}
     </div>
-  );
-}
-export function StudentsTable({
-  students,
-}: {
-  students: { id: string; name: string; email: string; active: boolean }[];
-}) {
-  const [search, setSearch] = useState("");
-  const [limit, setLimit] = useState(50);
-  const shown = students.filter((s) =>
-    `${s.name} ${s.email}`.toLowerCase().includes(search.toLowerCase()),
-  );
-  return (
-    <Card className="gap-0 overflow-hidden pb-0">
-      <CardHeader className="gap-4 pb-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle>
-            Daftar mahasiswa{" "}
-            <span className="ml-1 font-normal text-muted-foreground">
-              ({students.length})
-            </span>
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            {students.filter((s) => s.active).length} aktif ·{" "}
-            {students.filter((s) => !s.active).length} belum aktif
-          </p>
-        </div>
-        <div className="relative max-w-md">
-          <Search
-            className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Label className="sr-only" htmlFor="student-search">
-            Cari mahasiswa
-          </Label>
-          <Input
-            id="student-search"
-            className="pl-9"
-            placeholder="Cari nama atau email…"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setLimit(50);
-            }}
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="px-0">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead className="pl-6">Mahasiswa</TableHead>
-              <TableHead>Status akun</TableHead>
-              <TableHead className="pr-6">Aktivasi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {shown.slice(0, limit).map((s) => (
-              <TableRow key={s.id}>
-                <TableCell className="min-w-48 whitespace-normal py-4 pl-6">
-                  <p className="font-medium">{s.name}</p>
-                  <p className="mt-1 break-all text-xs text-muted-foreground">
-                    {s.email}
-                  </p>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="secondary"
-                    className={`gap-1.5 ${s.active ? "bg-success-subtle text-success" : "bg-muted text-muted-foreground"}`}
-                  >
-                    {s.active && (
-                      <CheckCircle2 className="size-3" aria-hidden="true" />
-                    )}
-                    {s.active ? "Aktif" : "Belum aktif"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="pr-6">
-                  {s.active ? (
-                    <span className="text-sm text-muted-foreground">
-                      Selesai
-                    </span>
-                  ) : (
-                    <ActivationButton userId={s.id} />
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        {!shown.length && (
-          <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-            {students.length
-              ? "Tidak ada mahasiswa yang sesuai."
-              : "Belum ada mahasiswa. Impor akun untuk memulai."}
-          </p>
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-6 py-4">
-          <p className="text-xs text-muted-foreground">
-            Menampilkan {Math.min(limit, shown.length)} dari {shown.length}{" "}
-            mahasiswa
-          </p>
-          {shown.length > limit && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setLimit((n) => n + 50)}
-            >
-              Tampilkan berikutnya
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
   );
 }

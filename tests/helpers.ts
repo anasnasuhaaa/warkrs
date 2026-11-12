@@ -16,6 +16,8 @@ export async function actor(role = "STUDENT", active = true) {
     .values({
       id,
       name,
+      nim:
+        role === "STUDENT" ? `T${id.replaceAll("-", "").toUpperCase()}` : null,
       email: `${id}@example.invalid`,
       role,
       emailVerified: active,

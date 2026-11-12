@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
 import { Client } from "pg";
 import { z } from "zod";
+import { emailSchema } from "../lib/account-validation";
 import { readDatabaseUrl } from "../lib/config";
 loadEnvConfig(process.cwd());
 async function main() {
@@ -12,9 +13,7 @@ async function main() {
     .min(1)
     .max(150)
     .parse(process.env.BOOTSTRAP_NAME);
-  const email = z
-    .email()
-    .parse(process.env.BOOTSTRAP_EMAIL?.trim().toLowerCase());
+  const email = emailSchema.parse(process.env.BOOTSTRAP_EMAIL);
   const password = z
     .string()
     .min(16)

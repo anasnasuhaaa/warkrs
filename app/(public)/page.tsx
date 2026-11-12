@@ -10,7 +10,7 @@ export default function Home() {
           War KRS
         </h1>
         <p className="max-w-md text-base leading-8 text-muted-foreground">
-          Ikuti game angkatan, urutkan pilihan paket saat war dimulai, dan lihat
+          Ikuti War angkatan, urutkan pilihan paket saat war dimulai, dan lihat
           hasil alokasimu.
         </p>
         <Button asChild size="lg">
@@ -26,7 +26,7 @@ export default function Home() {
       </section>
       <Card className="shadow-none">
         <CardHeader>
-          <CardTitle className="text-base">Sebelum mengikuti game</CardTitle>
+          <CardTitle className="text-base">Sebelum mengikuti War</CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="space-y-6">
@@ -34,12 +34,12 @@ export default function Home() {
               [
                 ShieldCheck,
                 "Bergabung secara manual",
-                "Baca dan setujui ketentuan game yang tersedia untukmu.",
+                "Baca dan setujui ketentuan War yang tersedia untukmu.",
               ],
               [
                 Clock3,
                 "Ikuti jadwal war",
-                "Pengurutan paket dibuka hanya saat game berlangsung.",
+                "Pengurutan paket dibuka hanya saat War berlangsung.",
               ],
               [
                 ListOrdered,

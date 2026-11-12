@@ -26,8 +26,19 @@ npm run dev
 Use secure environment injection for `BOOTSTRAP_NAME`, `BOOTSTRAP_EMAIL`, and
 `BOOTSTRAP_PASSWORD` (>=16 characters), then `npm run admin:bootstrap` once.
 It refuses an existing admin. Clear bootstrap variables immediately. There is no
-public signup or default account. Import `name,email` CSV at `/admin/students`,
-review rows, then explicitly send activation when Resend testing is configured.
+public signup or default account. At `/admin/students`, add students manually or
+download and upload the `.xlsx` template (`no`, `nama`, `nim`, `email`). NIM is
+text, normalized to uppercase; leading zeros are preserved. Email is trimmed and
+lowercased without a domain whitelist. Import supports at most 1,000 rows / 2 MB,
+reports per-row errors and skips existing records without overwriting them. New
+accounts remain inactive; activation emails are a separate admin action.
+
+Apply the additive `0007_student_nim` migration with `npm run db:migrate` before
+running this version. Legacy students retain a nullable NIM, shown as “Belum diisi”
+until corrected. Changing email revokes sessions, credentials and old links and
+requires activation at the new address. Deletion is blocked for students referenced
+by a War; historical outcomes and audit records are retained. Internal `/games`
+routes, tables and event names are unchanged; the interface calls them “War”.
 
 `.env.local` is loaded by Next.js and operator scripts; shell environment values
 have precedence. The example contains placeholders only. Do not commit secrets,
@@ -43,9 +54,10 @@ npm run build
 ```
 
 For database-backed tests, explicitly provide `DATABASE_URL` ending in `_test`, a
->=32-character test `AUTH_SECRET`, and `EMAIL_MODE=disabled`. Migrate that DB first.
-`npm test` runs real PostgreSQL transaction/security tests, including 200/500-client
-bursts. It never resets historical results.
+
+> =32-character test `AUTH_SECRET`, and `EMAIL_MODE=disabled`. Migrate that DB first.
+> `npm test` runs real PostgreSQL transaction/security tests, including 200/500-client
+> bursts. It never resets historical results.
 
 ```sh
 npx playwright install chromium

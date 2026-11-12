@@ -1,0 +1,3 @@
+ALTER TABLE "users" ADD COLUMN "nim" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "users_student_nim_unique" ON "users" USING btree ("nim") WHERE "users"."role" = 'STUDENT';--> statement-breakpoint
+ALTER TABLE "users" ADD CONSTRAINT "student_nim_format" CHECK ("users"."nim" IS NULL OR ("users"."nim" = upper(trim("users"."nim")) AND length("users"."nim") BETWEEN 1 AND 50 AND "users"."nim" ~ '^[A-Z0-9]+([.-][A-Z0-9]+)*$'));

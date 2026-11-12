@@ -10,13 +10,13 @@ export default async function Page() {
   return (
     <>
       <PageHeader
-        title="Game angkatan"
-        description="Kelola draf, jadwal, dan pantau hasil setiap game."
+        title="Daftar War"
+        description="Kelola draf, jadwal, dan pantau hasil setiap War."
         action={
           <Button asChild>
             <Link href="/admin/games/new">
               <Plus className="size-4" aria-hidden="true" />
-              Buat game
+              Buat War
             </Link>
           </Button>
         }

@@ -17,6 +17,8 @@ async function main() {
     const data = {
       id,
       name: `Fiksi Browser ${id.slice(0, 6)} ${role === "ADMIN" ? "Administrator Pengujian Antarmuka" : "Mahasiswa Pengujian Dengan Nama Lengkap Panjang"}`,
+      nim:
+        role === "STUDENT" ? `B${id.replaceAll("-", "").toUpperCase()}` : null,
       email: `${id}@example.invalid`,
       role,
       emailVerified: active,

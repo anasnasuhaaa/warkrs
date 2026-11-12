@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
+import ExcelJS from "exceljs";
 const fixtures = JSON.parse(
   readFileSync(".test-artifacts/browser-fixtures.json", "utf8"),
 );
@@ -33,13 +34,11 @@ async function accessibility(page: Page) {
   ).toEqual([]);
 }
 async function join(page: Page) {
-  await expect(
-    page.getByRole("button", { name: "Gabung game" }),
-  ).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Gabung War" })).toBeDisabled();
   await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Gabung game" }).click();
+  await page.getByRole("button", { name: "Gabung War" }).click();
   await expect(
-    page.getByText("Anda sudah bergabung dan menyetujui ketentuan game."),
+    page.getByText("Anda sudah bergabung dan menyetujui ketentuan War."),
   ).toBeVisible();
 }
 async function rank(page: Page) {
@@ -140,7 +139,7 @@ test("Upcoming forbids ranking, Completed reload, offline recovery and keyboard 
     page.getByRole("status").filter({ hasText: "Tersinkron" }),
   ).toBeVisible({ timeout: 10000 });
   await page.goto(`/games/${fixtures.completed.id}`);
-  await expect(page.getByText("Game selesai", { exact: true })).toBeVisible();
+  await expect(page.getByText("War selesai", { exact: true })).toBeVisible();
   await expect(page.getByText("Alokasi Anda diterima")).toBeVisible();
   await page.getByRole("tab", { name: "Tampilan Utama", exact: true }).focus();
   await page.keyboard.press("ArrowRight");
@@ -155,25 +154,25 @@ test("admin editor and confirmed End War at mobile widths", async ({
   await page.setViewportSize({ width: 320, height: 850 });
   await login(page, fixtures.admin);
   await page.goto(`/admin/games/${fixtures.draft.id}`);
-  await expect(page.getByLabel("Judul game")).toBeVisible();
+  await expect(page.getByLabel("Judul War")).toBeVisible();
   await page.screenshot({
     path: ".test-artifacts/redesign-editor-320.png",
     fullPage: true,
   });
   await noOverflow(page);
   await accessibility(page);
-  await page.getByLabel("Judul game").fill("Fiksi draf diperbarui");
+  await page.getByLabel("Judul War").fill("Fiksi draf diperbarui");
   await page.getByRole("button", { name: "Simpan draf" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Draf tersimpan" }),
   ).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel("Judul game")).toHaveValue(
+  await expect(page.getByLabel("Judul War")).toHaveValue(
     "Fiksi draf diperbarui",
   );
   await page.goto(`/admin/games/${fixtures.live[0].game.id}`);
   await expect(page.getByText("Teralokasi", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Judul game")).toHaveCount(0);
+  await expect(page.getByLabel("Judul War")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Simpan draf" })).toHaveCount(
     0,
   );
@@ -311,7 +310,7 @@ test("Jakarta calendar and full-minute time selection preserve the server payloa
   try {
     await login(page, fixtures.admin);
     await page.goto(`/admin/games/${fixtures.draft.id}`);
-    await expect(page.getByLabel("Judul game")).toBeVisible();
+    await expect(page.getByLabel("Judul War")).toBeVisible();
     expect(
       await page.evaluate(() => {
         const form = document.querySelector("form")!;
@@ -446,7 +445,7 @@ test("Jakarta calendar and full-minute time selection preserve the server payloa
   }
 });
 
-test("new game starts with empty dates and saves then publishes the existing payload", async ({
+test("new War starts with empty dates and saves then publishes the existing payload", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 950 });
@@ -457,7 +456,7 @@ test("new game starts with empty dates and saves then publishes the existing pay
     page.getByLabel("Menit selesai", { exact: true }),
   ).toBeDisabled();
   await page
-    .getByLabel("Judul game")
+    .getByLabel("Judul War")
     .fill("Fiksi pembuatan dari formulir kosong");
   const today = new Date();
   // Tomorrow in the browser timezone avoids dependence on time of day at publish.
@@ -494,7 +493,7 @@ test("new game starts with empty dates and saves then publishes the existing pay
   await page.getByRole("option", { name: "59", exact: true }).click();
   await page
     .getByLabel("Ketentuan yang perlu disetujui peserta")
-    .fill("Ketentuan pengujian formulir dan publikasi game.");
+    .fill("Ketentuan pengujian formulir dan publikasi War.");
   await page
     .getByLabel("Nama paket 1", { exact: true })
     .fill("Paket uji formulir");
@@ -526,12 +525,12 @@ test("new game starts with empty dates and saves then publishes the existing pay
   ]);
   await expect(page).toHaveURL(/\/admin\/games\/[0-9a-f-]+$/);
   await page
-    .getByRole("button", { name: "Terbitkan game", exact: true })
+    .getByRole("button", { name: "Publikasikan War", exact: true })
     .click();
   await expect(
-    page.getByText("Game sudah diterbitkan.", { exact: false }),
+    page.getByText("War sudah diterbitkan.", { exact: false }),
   ).toBeVisible();
-  await expect(page.getByLabel("Judul game")).toHaveCount(0);
+  await expect(page.getByLabel("Judul War")).toHaveCount(0);
   await noOverflow(page);
 });
 
@@ -568,39 +567,78 @@ test("public pages use Poppins and direct Indonesian copy", async ({
   await accessibility(page);
 });
 
-test("CSV import preview and activation feedback remain functional", async ({
+test("Excel template, partial import, row feedback and activation action", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 950 });
   await login(page, fixtures.admin);
   await page.goto("/admin/students");
-  await page
-    .getByRole("button", { name: "Impor mahasiswa", exact: true })
-    .click();
-  const dialog = page.getByRole("dialog", { name: "Impor mahasiswa" });
-  await expect(dialog).toBeVisible();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("link", { name: "Unduh Template", exact: true }).click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toBe("template-mahasiswa.xlsx");
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(
+    new Uint8Array(readFileSync((await download.path())!)).buffer,
+  );
+  const sheet = workbook.worksheets[0];
+  expect(sheet.getRow(1).values).toEqual([
+    undefined,
+    "no",
+    "nama",
+    "nim",
+    "email",
+  ]);
+  expect(sheet.getColumn(3).numFmt).toBe("@");
+  const key = crypto.randomUUID().replaceAll("-", "");
+  const email = `fictional+${key}@apps.ipb.ac.id`;
+  const nim = `0000${key.slice(0, 12).toUpperCase()}`;
+  sheet.addRow([1, "Mahasiswa Fiksi Excel", nim, `  ${email.toUpperCase()}  `]);
+  sheet.addRow([2, "Baris Salah", `X${key}`, "bukan-email"]);
+  sheet.addRow([3, "Baris Duplikat", nim, `duplicate+${key}@gmail.com`]);
+  await page.getByRole("button", { name: "Impor Excel", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Impor Excel" });
   await expect(
-    dialog.getByRole("button", { name: "Impor baris valid" }),
+    dialog.getByRole("button", { name: "Impor Mahasiswa", exact: true }),
   ).toBeDisabled();
-  const email = `${crypto.randomUUID()}@example.invalid`;
+  const choosingFile = page.waitForEvent("filechooser");
   await dialog
-    .getByLabel("CSV mahasiswa")
-    .fill(
-      `name,email\nMahasiswa Fiksi Impor,${email}\nBaris Salah,bukan-email`,
-    );
-  await dialog.getByRole("button", { name: "Pratinjau", exact: true }).click();
-  await expect(dialog.getByText("Tidak valid", { exact: true })).toBeVisible();
+    .getByRole("button", { name: "Pilih Berkas .xlsx", exact: true })
+    .click();
+  await (
+    await choosingFile
+  ).setFiles({
+    name: "mahasiswa.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from(await workbook.xlsx.writeBuffer()),
+  });
+  await dialog
+    .getByRole("button", { name: "Impor Mahasiswa", exact: true })
+    .click();
+  await expect(dialog.getByRole("status")).toContainText("1 ditambahkan");
+  await expect(dialog.getByRole("status")).toContainText("1 duplikat berkas");
+  await expect(dialog.getByRole("status")).toContainText("1 tidak valid");
   await expect(
-    dialog.getByRole("button", { name: "Impor baris valid" }),
-  ).toBeEnabled();
+    dialog.getByText("Format email tidak valid.", { exact: true }),
+  ).toBeVisible();
   await noOverflow(page);
   await accessibility(page);
-  await dialog.getByRole("button", { name: "Impor baris valid" }).click();
-  await expect(dialog.getByRole("status")).toContainText("Impor selesai");
+  await page.screenshot({
+    path: ".test-artifacts/students-import-375.png",
+    fullPage: true,
+  });
   await page.keyboard.press("Escape");
-  await page.getByLabel("Cari mahasiswa", { exact: true }).fill(email);
+  const search = page.getByLabel("Cari nama, NIM, atau email", { exact: true });
+  await search.fill(nim);
   await expect(
-    page.getByRole("cell", { name: /Mahasiswa Fiksi Impor/ }),
+    page.getByRole("cell", { name: "Mahasiswa Fiksi Excel", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: nim, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: email, exact: true }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Kirim aktivasi", exact: true })
@@ -608,5 +646,106 @@ test("CSV import preview and activation feedback remain functional", async ({
   await expect(page.getByRole("status")).toContainText(
     "Pengiriman email belum diaktifkan",
   );
+  await noOverflow(page);
+});
+
+test("manual student CRUD and protected deletion remain accessible across screen sizes", async ({
+  page,
+}) => {
+  await login(page, fixtures.admin);
+  await page.goto("/admin/students");
+  for (const width of [320, 375, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 950 });
+    await noOverflow(page);
+    await accessibility(page);
+    await page.screenshot({
+      path: `.test-artifacts/students-table-${width}.png`,
+      fullPage: true,
+    });
+  }
+  await page.setViewportSize({ width: 320, height: 950 });
+  await page
+    .getByRole("button", { name: "Tambah Mahasiswa", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Tambah Mahasiswa",
+    exact: true,
+  });
+  const key = crypto.randomUUID().replaceAll("-", "").toUpperCase();
+  const name = `Mahasiswa Fiksi Manual ${key.slice(0, 8)}`;
+  const nim = `00${key}`;
+  const email = `manual+${key.toLowerCase()}@gmail.com`;
+  await dialog.getByLabel("Nama Lengkap", { exact: true }).fill(name);
+  await dialog.getByLabel("NIM", { exact: true }).fill(nim);
+  await dialog.getByLabel("Email", { exact: true }).fill(email);
+  await accessibility(page);
+  await noOverflow(page);
+  await page.screenshot({
+    path: ".test-artifacts/student-form-320.png",
+    fullPage: true,
+  });
+  await dialog
+    .getByRole("button", { name: "Simpan Mahasiswa", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+  const search = page.getByLabel("Cari nama, NIM, atau email", { exact: true });
+  await search.fill(nim);
+  await expect(page.getByRole("cell", { name, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: `Ubah ${name}`, exact: true }).click();
+  const edit = page.getByRole("dialog", {
+    name: "Ubah Mahasiswa",
+    exact: true,
+  });
+  await expect(edit.getByLabel("NIM", { exact: true })).toHaveValue(nim);
+  await edit.getByLabel("Nama Lengkap", { exact: true }).fill(`${name} Baru`);
+  await edit
+    .getByRole("button", { name: "Simpan Mahasiswa", exact: true })
+    .click();
+  await expect(edit).not.toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: `${name} Baru`, exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: `Hapus ${name} Baru`, exact: true })
+    .click();
+  const confirmation = page.getByRole("alertdialog");
+  await page.screenshot({
+    path: ".test-artifacts/student-delete-320.png",
+    fullPage: true,
+  });
+  await accessibility(page);
+  await noOverflow(page);
+  await confirmation
+    .getByRole("button", { name: "Batal", exact: true })
+    .click();
+  await expect(
+    page.getByRole("cell", { name: `${name} Baru`, exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: `Hapus ${name} Baru`, exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Ya, Hapus Mahasiswa", exact: true })
+    .click();
+  await expect(
+    page.getByRole("cell", { name: `${name} Baru`, exact: true }),
+  ).toHaveCount(0);
+  await search.fill(fixtures.student.email);
+  await page
+    .getByRole("button", {
+      name: `Hapus ${fixtures.student.name}`,
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("button", { name: "Ya, Hapus Mahasiswa", exact: true })
+    .click();
+  await expect(page.getByRole("alertdialog").getByRole("alert")).toContainText(
+    "riwayat War",
+  );
+  await page.getByRole("button", { name: "Batal", exact: true }).click();
+  await expect(
+    page.getByRole("cell", { name: fixtures.student.name, exact: true }),
+  ).toBeVisible();
   await noOverflow(page);
 });

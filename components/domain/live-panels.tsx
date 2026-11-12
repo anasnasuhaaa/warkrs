@@ -198,16 +198,16 @@ function eventPresentation(event: Activity) {
       icon: LockKeyhole,
       label: "Pengiriman ditutup",
       tone: "bg-muted text-muted-foreground",
-      text: "Game menutup pengiriman baru.",
+      text: "War menutup pengiriman baru.",
     };
   return {
     icon: Flag,
-    label: event.type === "GAME_COMPLETED" ? "Game selesai" : "Aktivitas game",
+    label: event.type === "GAME_COMPLETED" ? "War selesai" : "Aktivitas War",
     tone: "bg-muted text-muted-foreground",
     text:
       event.type === "GAME_COMPLETED"
-        ? "Game selesai. Hasil tetap disimpan."
-        : "Aktivitas game dicatat oleh server.",
+        ? "War selesai. Hasil tetap disimpan."
+        : "Aktivitas War dicatat oleh server.",
   };
 }
 export function LivePanels({
@@ -321,7 +321,7 @@ export function LivePanels({
         <div
           className="max-h-[30rem] overflow-y-auto overscroll-contain rounded-lg border bg-card"
           tabIndex={0}
-          aria-label="Catatan aktivitas game"
+          aria-label="Catatan aktivitas War"
         >
           <ol className="divide-y">
             {events.slice(0, visible).map((e) => {

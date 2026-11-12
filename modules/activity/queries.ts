@@ -10,7 +10,7 @@ import { gameDetail } from "@/modules/games/detail";
 import { effectiveStatus } from "@/modules/games/status";
 export async function feedAccess(tx: Transaction, actor: Actor, id: string) {
   const [game] = await tx.select().from(games).where(eq(games.id, id));
-  invariant(game, "NOT_FOUND", "Game tidak ditemukan.", 404);
+  invariant(game, "NOT_FOUND", "War tidak ditemukan.", 404);
   if (actor.role !== "ADMIN") {
     const member = await activeMember(tx, actor, id);
     invariant(

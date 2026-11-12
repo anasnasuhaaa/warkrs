@@ -2,137 +2,47 @@ import "server-only";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { hashPassword } from "better-auth/crypto";
-import { parse } from "csv-parse/sync";
 import { Resend } from "resend";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { account, accountTokens, auditLogs, session, user } from "@/db/schema";
+import { account, accountTokens, session, user } from "@/db/schema";
 import { Actor, adminOnly } from "@/lib/authorization";
-import { AppError, invariant } from "@/lib/errors";
+import { invariant } from "@/lib/errors";
 import { readAppUrl } from "@/lib/config";
 import { limit } from "@/lib/rate-limit";
 
-const emailSchema = z
-  .email()
-  .max(254)
-  .transform((v) => v.trim().toLowerCase());
+import { emailSchema } from "@/lib/account-validation";
+export {
+  importStudents,
+  listStudents,
+  createStudent,
+  updateStudent,
+  deleteStudent,
+} from "./students";
 const passwordSchema = z.string().min(12).max(128);
 const digest = (token: string) =>
   createHash("sha256").update(token).digest("hex");
-export function previewCsv(csv: string) {
-  invariant(csv.length <= 200_000, "INVALID_INPUT", "Berkas maksimal 200 KB.");
-  let records: Record<string, string>[];
-  try {
-    records = parse(csv, {
-      columns: true,
-      bom: true,
-      trim: true,
-      skip_empty_lines: true,
-    });
-  } catch {
-    throw new AppError(
-      "INVALID_INPUT",
-      "CSV tidak valid. Gunakan kolom name,email.",
-    );
-  }
-  invariant(
-    records.length > 0 && records.length <= 1000,
-    "INVALID_INPUT",
-    "CSV harus berisi 1–1.000 baris dengan kolom name,email.",
-  );
-  const seen = new Set<string>();
-  return records.map((row, i) => {
-    const name = (row.name ?? "").trim();
-    const email = (row.email ?? "").trim().toLowerCase();
-    const valid =
-      name.length > 0 &&
-      name.length <= 150 &&
-      emailSchema.safeParse(email).success;
-    const duplicate = seen.has(email);
-    seen.add(email);
-    return {
-      row: i + 2,
-      name,
-      email,
-      status: !valid ? "invalid" : duplicate ? "duplicate" : "valid",
-    };
-  });
-}
-export async function importStudents(
-  actor: Actor,
-  csv: string,
-  preview = false,
-) {
-  adminOnly(actor);
-  const rows = previewCsv(csv);
-  if (preview) {
-    const existing = new Set(
-      (await getDb().select({ email: user.email }).from(user)).map(
-        (u) => u.email,
-      ),
-    );
-    return rows.map((r) => ({
-      ...r,
-      status:
-        r.status === "valid" && existing.has(r.email) ? "existing" : r.status,
-    }));
-  }
-  await limit(`import:${actor.id}`, 10);
-  return getDb().transaction(async (tx) => {
-    const result = [];
-    for (const row of rows) {
-      if (row.status !== "valid") {
-        result.push(row);
-        continue;
-      }
-      const inserted = await tx
-        .insert(user)
-        .values({ id: randomUUID(), name: row.name, email: row.email })
-        .onConflictDoNothing({ target: user.email })
-        .returning({ id: user.id });
-      result.push({
-        ...row,
-        status: inserted.length ? "inserted" : "existing",
-      });
-    }
-    await tx
-      .insert(auditLogs)
-      .values({
-        id: randomUUID(),
-        adminId: actor.id,
-        action: "STUDENTS_IMPORTED",
-        metadata: JSON.stringify({
-          inserted: result.filter((r) => r.status === "inserted").length,
-          existing: result.filter((r) => r.status === "existing").length,
-          rejected: result.filter(
-            (r) => r.status === "invalid" || r.status === "duplicate",
-          ).length,
-        }),
-      });
-    return result;
-  });
-}
-export async function listStudents(actor: Actor) {
-  adminOnly(actor);
-  return getDb()
-    .select({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      active: user.emailVerified,
-    })
-    .from(user)
-    .where(eq(user.role, "STUDENT"))
-    .orderBy(user.name);
-}
 export async function issueToken(
   userId: string,
   purpose: "ACTIVATION" | "PASSWORD_RESET",
+  expectedEmail?: string,
 ) {
   const token = randomBytes(32).toString("base64url");
   await getDb().transaction(async (tx) => {
     // Same user lock as token consumption, serializes resend and consumption.
     await tx.execute(sql`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`);
+    const [current] = await tx.select().from(user).where(eq(user.id, userId));
+    invariant(
+      current && (!expectedEmail || current.email === expectedEmail),
+      "ACCOUNT_CHANGED",
+      "Akun berubah. Muat ulang dan coba kembali.",
+      409,
+    );
+    invariant(
+      purpose !== "PASSWORD_RESET" || current.emailVerified,
+      "INVALID_TOKEN",
+      "Akun belum aktif.",
+    );
     await tx
       .update(accountTokens)
       .set({ consumedAt: sql`clock_timestamp()` })
@@ -266,12 +176,12 @@ export async function activationEmail(actor: Actor, id: string) {
     503,
   );
   await limit(`email:${id}`, 3, 3600);
-  const token = await issueToken(id, "ACTIVATION");
+  const token = await issueToken(id, "ACTIVATION", student.email);
   await sendLink(student.email, token, "ACTIVATION");
   return { message: "Email aktivasi dikirim." };
 }
 export async function requestReset(emailInput: string) {
-  const email = emailSchema.parse(emailInput.trim().toLowerCase());
+  const email = emailSchema.parse(emailInput);
   await limit(`reset:${email}`, 3, 3600);
   invariant(
     process.env.EMAIL_MODE === "resend",
@@ -286,7 +196,7 @@ export async function requestReset(emailInput: string) {
   if (current)
     await sendLink(
       email,
-      await issueToken(current.id, "PASSWORD_RESET"),
+      await issueToken(current.id, "PASSWORD_RESET", email),
       "PASSWORD_RESET",
     );
   return {

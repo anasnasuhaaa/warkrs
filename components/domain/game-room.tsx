@@ -71,7 +71,7 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
         className="inline-flex items-center gap-2 rounded-sm text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
-        Daftar game
+        Daftar War
       </Link>
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -99,7 +99,7 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
             <div className="space-y-2">
               <h2 className="text-base font-medium">War belum dimulai</h2>
               <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
-                Pilihan paket dibuka setelah server menyatakan game berlangsung.
+                Pilihan paket dibuka setelah server menyatakan War berlangsung.
               </p>
             </div>
             <div
@@ -128,7 +128,7 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
       {!game.joinedAt && !closed && (
         <Card className="mx-auto w-full max-w-3xl">
           <CardHeader className="border-b">
-            <CardTitle>Bergabung ke game</CardTitle>
+            <CardTitle>Bergabung ke War</CardTitle>
             <CardDescription>
               Baca ketentuan berikut sebelum memberikan persetujuan.
             </CardDescription>
@@ -192,7 +192,7 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
                   aria-hidden="true"
                 />
               )}
-              {pending ? "Bergabung…" : "Gabung game"}
+              {pending ? "Bergabung…" : "Gabung War"}
             </Button>
             {message && (
               <Alert variant="destructive" role="status">
@@ -209,7 +209,7 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
               className="mt-0.5 size-4 shrink-0 text-success"
               aria-hidden="true"
             />
-            Anda sudah bergabung dan menyetujui ketentuan game.
+            Anda sudah bergabung dan menyetujui ketentuan War.
           </p>
           <LivePanels snapshot={snapshot} events={events}>
             <Ranking
@@ -232,8 +232,8 @@ export function GameRoom({ initial }: { initial: RoomGame }) {
           <div>
             <h2 className="text-sm font-medium">
               {game.status === "Completed"
-                ? "Game selesai"
-                : "Game sedang ditutup"}
+                ? "War selesai"
+                : "War sedang ditutup"}
             </h2>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
               Pengiriman baru telah ditutup. Hasil yang diterima tetap disimpan.

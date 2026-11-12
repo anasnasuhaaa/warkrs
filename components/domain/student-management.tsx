@@ -1,0 +1,434 @@
+"use client";
+import { useId, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  LoaderCircle,
+  CheckCircle2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableHeader,
+  TableHead,
+  TableBody,
+  TableCell,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  StudentImport,
+  TemplateButton,
+  ActivationButton,
+} from "./student-import";
+import { studentInput } from "@/lib/account-validation";
+import { api } from "@/lib/api-client";
+export type Student = {
+  id: string;
+  name: string;
+  nim: string | null;
+  email: string;
+  active: boolean;
+};
+function StudentForm({
+  student,
+  onSaved,
+}: {
+  student?: Student;
+  onSaved?: (message: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState("");
+  const [fields, setFields] = useState({
+    name: student?.name ?? "",
+    nim: student?.nim ?? "",
+    email: student?.email ?? "",
+  });
+  const formId = useId();
+  const router = useRouter();
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (pending) return;
+        setOpen(value);
+        if (value) {
+          setFields({
+            name: student?.name ?? "",
+            nim: student?.nim ?? "",
+            email: student?.email ?? "",
+          });
+          setMessage("");
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        {student ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={`Ubah ${student.name}`}
+          >
+            <Pencil className="size-4" aria-hidden="true" />
+          </Button>
+        ) : (
+          <Button>
+            <Plus className="size-4" aria-hidden="true" />
+            Tambah Mahasiswa
+          </Button>
+        )}
+      </DialogTrigger>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            {student ? "Ubah Mahasiswa" : "Tambah Mahasiswa"}
+          </DialogTitle>
+          <DialogDescription>
+            {student
+              ? "Perbarui identitas mahasiswa. Perubahan email mengharuskan aktivasi ulang."
+              : "Akun baru belum aktif. Email aktivasi dikirim secara terpisah."}
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          className="space-y-5"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (pending) return;
+            setMessage("");
+            const parsed = studentInput.safeParse(fields);
+            if (!parsed.success) {
+              setMessage(parsed.error.issues.map((i) => i.message).join(" "));
+              return;
+            }
+            setPending(true);
+            try {
+              const result = await api<{ message: string }>(
+                student
+                  ? `/api/admin/students/${student.id}`
+                  : "/api/admin/students",
+                parsed.data,
+                student ? "PATCH" : "POST",
+              );
+              onSaved?.(result.message);
+              setOpen(false);
+              router.refresh();
+            } catch (error) {
+              setMessage(
+                error instanceof Error ? error.message : "Data gagal disimpan.",
+              );
+            } finally {
+              setPending(false);
+            }
+          }}
+        >
+          {(
+            [
+              ["name", "Nama Lengkap", 150],
+              ["nim", "NIM", 50],
+              ["email", "Email", 254],
+            ] as const
+          ).map(([key, label, max]) => (
+            <div className="space-y-2" key={key}>
+              <Label htmlFor={`${formId}-${key}`}>{label}</Label>
+              <Input
+                id={`${formId}-${key}`}
+                name={key}
+                type={key === "email" ? "email" : "text"}
+                autoComplete={
+                  key === "email" ? "email" : key === "name" ? "name" : "off"
+                }
+                value={fields[key]}
+                required
+                maxLength={max}
+                disabled={pending}
+                onChange={(e) =>
+                  setFields({ ...fields, [key]: e.target.value })
+                }
+              />
+            </div>
+          ))}
+          {student && fields.email.trim().toLowerCase() !== student.email && (
+            <p className="rounded-md bg-warning-subtle p-3 text-sm leading-relaxed text-warning">
+              Email baru belum terverifikasi. Seluruh sesi, kata sandi, dan
+              tautan aktivasi/pemulihan lama akan dicabut. Kirim aktivasi
+              setelah menyimpan.
+            </p>
+          )}
+          {message && (
+            <Alert variant="destructive" role="alert">
+              <AlertDescription>{message}</AlertDescription>
+            </Alert>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() => setOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button disabled={pending}>
+              {pending && (
+                <LoaderCircle
+                  className="size-4 animate-spin"
+                  aria-hidden="true"
+                />
+              )}
+              {pending ? "Menyimpan…" : "Simpan Mahasiswa"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+function DeleteStudent({
+  student,
+  onDeleted,
+}: {
+  student: Student;
+  onDeleted: (message: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState("");
+  const router = useRouter();
+  return (
+    <AlertDialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!pending) {
+          setOpen(value);
+          setMessage("");
+        }
+      }}
+    >
+      <AlertDialogTrigger asChild>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          aria-label={`Hapus ${student.name}`}
+        >
+          <Trash2 className="size-4" aria-hidden="true" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Hapus mahasiswa?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Akun {student.name} ({student.nim || "NIM belum diisi"}) akan
+            dihapus. Mahasiswa yang memiliki relasi atau riwayat War tidak dapat
+            dihapus.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {message && (
+          <Alert variant="destructive" role="alert">
+            <AlertDescription>{message}</AlertDescription>
+          </Alert>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={pending}>Batal</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-white hover:bg-destructive/90"
+            disabled={pending}
+            onClick={async (e) => {
+              e.preventDefault();
+              if (pending) return;
+              setPending(true);
+              setMessage("");
+              try {
+                const result = await api<{ message: string }>(
+                  `/api/admin/students/${student.id}`,
+                  {},
+                  "DELETE",
+                );
+                setOpen(false);
+                onDeleted(result.message);
+                router.refresh();
+              } catch (error) {
+                setMessage(
+                  error instanceof Error
+                    ? error.message
+                    : "Mahasiswa gagal dihapus.",
+                );
+              } finally {
+                setPending(false);
+              }
+            }}
+          >
+            {pending ? "Menghapus…" : "Ya, Hapus Mahasiswa"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+export function StudentActions() {
+  const [message, setMessage] = useState("");
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        <TemplateButton />
+        <StudentImport />
+        <StudentForm onSaved={setMessage} />
+      </div>
+      {message && (
+        <p role="status" className="text-sm text-success">
+          {message}
+        </p>
+      )}
+    </div>
+  );
+}
+export function StudentsTable({ students }: { students: Student[] }) {
+  const [search, setSearch] = useState("");
+  const [limit, setLimit] = useState(50);
+  const [message, setMessage] = useState("");
+  const shown = students.filter((s) =>
+    `${s.name} ${s.nim ?? ""} ${s.email}`
+      .toLowerCase()
+      .includes(search.trim().toLowerCase()),
+  );
+  return (
+    <Card className="overflow-hidden py-0">
+      <CardContent className="space-y-4 px-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-5 sm:px-6">
+          <div className="relative w-full sm:max-w-sm">
+            <Search
+              className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Label htmlFor="student-search" className="sr-only">
+              Cari nama, NIM, atau email
+            </Label>
+            <Input
+              id="student-search"
+              placeholder="Cari nama, NIM, atau email…"
+              className="pl-9"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setLimit(50);
+              }}
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {students.length.toLocaleString("id-ID")} mahasiswa
+          </p>
+        </div>
+        {message && (
+          <p role="status" className="px-4 text-sm text-success sm:px-6">
+            {message}
+          </p>
+        )}
+        <Table className="min-w-[52rem]">
+          <TableHeader>
+            <TableRow className="bg-muted/50">
+              <TableHead className="pl-4 sm:pl-6">Nama</TableHead>
+              <TableHead>NIM</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Status akun</TableHead>
+              <TableHead className="pr-4 sm:pr-6">Tindakan</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {shown.slice(0, limit).map((s) => (
+              <TableRow key={s.id}>
+                <TableCell className="min-w-44 max-w-72 whitespace-normal py-4 pl-4 font-medium sm:pl-6">
+                  {s.name}
+                </TableCell>
+                <TableCell className="min-w-32 max-w-40 whitespace-normal font-medium">
+                  {s.nim || (
+                    <span className="whitespace-nowrap text-sm font-normal text-warning">
+                      Belum diisi
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="min-w-56 max-w-64 break-all whitespace-normal">
+                  {s.email}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant="secondary"
+                    className={
+                      s.active
+                        ? "gap-1 bg-success-subtle text-success"
+                        : "bg-muted text-muted-foreground"
+                    }
+                  >
+                    {s.active && (
+                      <CheckCircle2 className="size-3" aria-hidden="true" />
+                    )}
+                    {s.active ? "Aktif" : "Belum aktif"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="pr-4 sm:pr-6">
+                  <div className="flex items-start gap-1">
+                    <StudentForm student={s} onSaved={setMessage} />
+                    <DeleteStudent student={s} onDeleted={setMessage} />
+                  </div>
+                  {!s.active && (
+                    <div className="mt-2">
+                      <ActivationButton userId={s.id} />
+                    </div>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {!shown.length && (
+          <p className="px-6 py-10 text-center text-sm text-muted-foreground">
+            {students.length
+              ? "Tidak ada mahasiswa yang sesuai."
+              : "Belum ada mahasiswa. Tambahkan akun atau impor berkas Excel."}
+          </p>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-4 sm:px-6">
+          <p className="text-xs text-muted-foreground">
+            Menampilkan {Math.min(limit, shown.length)} dari {shown.length}{" "}
+            mahasiswa
+          </p>
+          {shown.length > limit && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setLimit((n) => n + 50)}
+            >
+              Tampilkan berikutnya
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
