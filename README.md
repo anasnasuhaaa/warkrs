@@ -72,6 +72,9 @@ traces and screenshots stay in ignored directories.
 
 ## Docker and staging
 
+Panduan Neon + Vercel dalam Bahasa Indonesia: [PANDUAN-NEON-VERCEL.md](PANDUAN-NEON-VERCEL.md).
+File lokal `.env.neon` dapat diisi untuk impor environment Vercel dan tetap diabaikan Git.
+
 Create an ignored `.env` from the example with actual URL-safe secrets.
 
 ```sh
